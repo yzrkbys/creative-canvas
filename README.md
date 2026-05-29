@@ -25,9 +25,10 @@
 
 1. このリポジトリをクローンし、そのフォルダを **Claude Code で開く**
    ```bash
-   git clone <このリポジトリのURL> creative-canvas
+   git clone https://github.com/yzrkbys/creative-canvas.git
    cd creative-canvas
    ```
+   ※ Private リポジトリです。事前にオーナーから GitHub アカウントを Collaborator 招待してもらってください（招待メールの承認が必要）。
 2. Claude Code のチャットで次を実行
    ```
    /setup
