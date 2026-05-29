@@ -1,0 +1,80 @@
+import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
+
+// Resolve a binary: explicit env override, then common install locations, then PATH.
+function findBin(name: string, envVar: string): string {
+  const env = process.env[envVar];
+  if (env) return env;
+  for (const c of [`/opt/homebrew/bin/${name}`, `/usr/local/bin/${name}`, `/usr/bin/${name}`])
+    if (existsSync(c)) return c;
+  return name; // fall back to PATH
+}
+
+const FFMPEG = findBin("ffmpeg", "CANVAS_FFMPEG");
+const FFPROBE = findBin("ffprobe", "CANVAS_FFPROBE");
+
+function run(bin: string, args: string[]): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const p = spawn(bin, args);
+    let out = "";
+    let err = "";
+    p.stdout.on("data", (d) => (out += d));
+    p.stderr.on("data", (d) => (err += d));
+    p.on("error", (e) =>
+      reject(
+        new Error(
+          `${bin} の起動に失敗しました（インストール済みか確認してください）: ${e.message}`,
+        ),
+      ),
+    );
+    p.on("close", (code) =>
+      code === 0 ? resolve(out) : reject(new Error(`${bin} failed: ${err.slice(-400)}`)),
+    );
+  });
+}
+
+export async function probeSize(file: string): Promise<{ w: number; h: number }> {
+  const out = await run(FFPROBE, [
+    "-v",
+    "error",
+    "-select_streams",
+    "v:0",
+    "-show_entries",
+    "stream=width,height",
+    "-of",
+    "csv=p=0:s=x",
+    file,
+  ]);
+  const [w, h] = out.trim().split("x").map(Number);
+  return { w: w || 1280, h: h || 720 };
+}
+
+// Concatenate clips in order into a single mp4. Clips are scaled+padded to the
+// first clip's frame so mixed resolutions/aspect ratios join cleanly (no audio).
+export async function concatVideos(inputs: string[], outPath: string): Promise<void> {
+  const { w, h } = await probeSize(inputs[0]);
+  const args: string[] = [];
+  for (const f of inputs) args.push("-i", f);
+  let filter = "";
+  inputs.forEach((_, i) => {
+    filter +=
+      `[${i}:v]scale=${w}:${h}:force_original_aspect_ratio=decrease,` +
+      `pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30[v${i}];`;
+  });
+  filter += inputs.map((_, i) => `[v${i}]`).join("") + `concat=n=${inputs.length}:v=1:a=0[out]`;
+  args.push(
+    "-filter_complex",
+    filter,
+    "-map",
+    "[out]",
+    "-c:v",
+    "libx264",
+    "-pix_fmt",
+    "yuv420p",
+    "-movflags",
+    "+faststart",
+    "-y",
+    outPath,
+  );
+  await run(FFMPEG, args);
+}

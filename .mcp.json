@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "creative-canvas": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["tsx", "mcp/src/index.ts"],
+      "env": {
+        "CANVAS_SERVER_URL": "http://localhost:8787"
+      }
+    }
+  }
+}
