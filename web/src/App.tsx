@@ -82,6 +82,62 @@ function Flow() {
     | null
     | { sx: number; sy: number; flow: { x: number; y: number }; source: string; handle: PortOut; kind: OutputKind }
   >(null);
+  const dragDepth = useRef(0);
+  const [dragOver, setDragOver] = useState(false);
+
+  // Drag-and-drop from Finder / OS: images → image_upload, PDF/text → file_import.
+  const onCanvasDragOver = useCallback((e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes("Files")) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+    }
+  }, []);
+  const onCanvasDragEnter = useCallback((e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes("Files")) return;
+    e.preventDefault();
+    dragDepth.current += 1;
+    setDragOver(true);
+  }, []);
+  const onCanvasDragLeave = useCallback(() => {
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) setDragOver(false);
+  }, []);
+  const onCanvasDrop = useCallback(
+    async (e: React.DragEvent) => {
+      e.preventDefault();
+      dragDepth.current = 0;
+      setDragOver(false);
+      const files = Array.from(e.dataTransfer.files);
+      if (!files.length) return;
+      const base = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i];
+        const pos = { x: base.x + i * 32, y: base.y + i * 32 };
+        const isImage = f.type.startsWith("image/");
+        const ext = (f.name.split(".").pop() || "").toLowerCase();
+        const isDoc =
+          !isImage && /^(pdf|txt|md|markdown|csv|json|html|htm|log)$/.test(ext);
+        if (!isImage && !isDoc) continue;
+        try {
+          const dataUrl: string = await new Promise((res, rej) => {
+            const r = new FileReader();
+            r.onload = () => res(String(r.result));
+            r.onerror = () => rej(r.error);
+            r.readAsDataURL(f);
+          });
+          const node = await api.addNode({
+            type: isImage ? "image_upload" : "file_import",
+            position: pos,
+          });
+          if (isImage) await api.uploadFile(node.id, dataUrl);
+          else await api.importFile(node.id, dataUrl, f.name);
+        } catch (err) {
+          alert(`drop failed: ${(err as Error).message}`);
+        }
+      }
+    },
+    [rf],
+  );
 
   // sync store graph -> react-flow (preserve local selection)
   useEffect(() => {
@@ -304,7 +360,13 @@ function Flow() {
         </button>
       </header>
 
-      <div className="canvas">
+      <div
+        className={`canvas${dragOver ? " dragover" : ""}`}
+        onDragEnter={onCanvasDragEnter}
+        onDragOver={onCanvasDragOver}
+        onDragLeave={onCanvasDragLeave}
+        onDrop={onCanvasDrop}
+      >
         <ReactFlow
           nodes={rfNodes}
           edges={rfEdges}

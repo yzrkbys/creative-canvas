@@ -71,6 +71,23 @@ body,
 .canvas {
   flex: 1;
   min-height: 0;
+  position: relative;
+}
+.canvas.dragover::after {
+  content: "ドロップで取込（画像 → image_upload  /  PDF・txt・md など → file_import）";
+  position: absolute;
+  inset: 14px;
+  border: 2px dashed #58a6ff;
+  border-radius: 14px;
+  background: rgba(31, 111, 235, 0.07);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #79c0ff;
+  font-size: 14px;
+  font-weight: 500;
+  pointer-events: none;
+  z-index: 20;
 }
 
 .back-btn {
