@@ -53,6 +53,11 @@ export const PORTS: Record<NodeType, PortDef> = {
     inputs: [{ port: "clip_in", kind: "video", required: true }],
     output: { port: "video_out", kind: "video" },
   },
+  // extract one frame from a video at a chosen time -> image (builtin/ffmpeg)
+  frame_extract: {
+    inputs: [{ port: "video_in", kind: "video", required: true }],
+    output: { port: "image_out", kind: "image" },
+  },
   // text / knowledge nodes — usable in ANY project alongside media nodes.
   note: {
     // sources this note synthesizes (filled by the user or the agent)

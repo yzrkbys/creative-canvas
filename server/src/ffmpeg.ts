@@ -78,3 +78,32 @@ export async function concatVideos(inputs: string[], outPath: string): Promise<v
   );
   await run(FFMPEG, args);
 }
+
+// Duration in seconds of a media file (0 if unknown).
+export async function probeDuration(file: string): Promise<number> {
+  try {
+    const out = await run(FFPROBE, [
+      "-v",
+      "error",
+      "-show_entries",
+      "format=duration",
+      "-of",
+      "csv=p=0",
+      file,
+    ]);
+    const d = Number(out.trim());
+    return Number.isFinite(d) && d > 0 ? d : 0;
+  } catch {
+    return 0;
+  }
+}
+
+// Extract a single frame at `timeSec` seconds as a PNG (accurate seek).
+export async function extractFrame(
+  input: string,
+  timeSec: number,
+  outPath: string,
+): Promise<void> {
+  const t = Math.max(0, timeSec);
+  await run(FFMPEG, ["-ss", String(t), "-i", input, "-frames:v", "1", "-y", outPath]);
+}

@@ -43,6 +43,7 @@ const nodeTypes: NodeTypes = {
   image_upload: CanvasNode,
   video_upscale: CanvasNode,
   video_concat: CanvasNode,
+  frame_extract: CanvasNode,
   note: CanvasNode,
   doc: CanvasNode,
   web_clip: CanvasNode,
@@ -58,12 +59,13 @@ function defaultSize(t: NodeType): { w: number; h: number } {
   if (t === "web_clip" || t === "file_import") return { w: 260, h: 230 };
   if (t === "video_gen" || t === "video_upscale" || t === "video_concat")
     return { w: 300, h: 280 };
+  if (t === "frame_extract") return { w: 300, h: 340 };
   return { w: 280, h: 300 }; // image_gen / image_edit / image_upload
 }
 
 // Grouped node palette for the "+ Add node" menu (scales as types grow).
 const NODE_GROUPS: { label: string; types: NodeType[] }[] = [
-  { label: "メディア", types: ["image_gen", "image_edit", "video_gen", "image_upload", "video_upscale", "video_concat"] },
+  { label: "メディア", types: ["image_gen", "image_edit", "video_gen", "image_upload", "video_upscale", "video_concat", "frame_extract"] },
   { label: "テキスト / 情報", types: ["note", "doc", "web_clip", "file_import"] },
   { label: "レイアウト", types: ["frame"] },
 ];

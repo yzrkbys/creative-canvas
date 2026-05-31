@@ -3,7 +3,7 @@ import path from "node:path";
 import { promises as fs } from "node:fs";
 import { nanoid } from "nanoid";
 import pdfParse from "pdf-parse/lib/pdf-parse.js";
-import { concatVideos } from "./ffmpeg.js";
+import { concatVideos, extractFrame, probeDuration } from "./ffmpeg.js";
 import { projectAssetsDir, resolveAssetPath } from "./paths.js";
 import {
   connectionValid,
@@ -359,6 +359,7 @@ export class Canvas extends EventEmitter {
       throw new Error(`${node.type} nodes don't run`);
     if (node.type === "web_clip") return this.runWebClip(node);
     if (node.type === "video_concat") return this.runVideoConcat(node);
+    if (node.type === "frame_extract") return this.runFrameExtract(node);
 
     const spec = getModel(node.data.model);
     if (!spec) throw new Error(`node ${id} has no valid model`);
@@ -506,6 +507,79 @@ export class Canvas extends EventEmitter {
         kind: "video",
         url: `/assets/${this.projectId}/${name}`,
         meta: { provider: "ffmpeg", model: "video_concat" },
+        createdAt: new Date().toISOString(),
+      };
+      node.data.outputs.push(output);
+      this.touch();
+      this.emitEvent({ type: "node:output", id: node.id, output });
+      job.status = "succeeded";
+      job.progress = 1;
+      this.setStatus(node, "succeeded");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      job.status = "failed";
+      job.error = msg;
+      this.setStatus(node, "failed", msg);
+    }
+  }
+
+  // ---- frame_extract (builtin: grab one frame from a video at a chosen time) ----
+  private runFrameExtract(node: GraphNode): RunResult {
+    const job: Job = {
+      id: nanoid(),
+      nodeId: node.id,
+      status: "queued",
+      progress: 0,
+      createdAt: new Date().toISOString(),
+    };
+    this.jobs.set(job.id, job);
+    this.setStatus(node, "queued");
+    void this.executeFrameExtract(job, node);
+    return { jobId: job.id };
+  }
+
+  // Resolve a time spec (number seconds | "first" | "last" | "NN%") to seconds.
+  private frameTimeSec(raw: unknown, duration: number): number {
+    if (typeof raw === "number") return Math.max(0, raw);
+    const s = String(raw ?? "").trim().toLowerCase();
+    if (s === "" || s === "first") return 0;
+    if (s === "last" || s === "end") return Math.max(0, duration - 0.05);
+    if (s.endsWith("%")) {
+      const pct = Number(s.slice(0, -1));
+      if (Number.isFinite(pct))
+        return Math.max(0, Math.min(duration, (pct / 100) * duration));
+    }
+    const n = Number(s);
+    return Number.isFinite(n) ? Math.max(0, n) : 0;
+  }
+
+  private async executeFrameExtract(job: Job, node: GraphNode): Promise<void> {
+    try {
+      job.status = "running";
+      this.setStatus(node, "running");
+      // single connected video on video_in -> its latest video output
+      const edge = this.graph.edges.find(
+        (e) => e.target === node.id && e.targetHandle === "video_in",
+      );
+      const src = edge && this.graph.nodes.find((n) => n.id === edge.source);
+      const vid =
+        src && [...(src.data.outputs ?? [])].reverse().find((o) => o.kind === "video");
+      if (!vid) throw new Error("video_in に動画出力を持つノードを接続してください");
+
+      const inputPath = resolveAssetPath(vid.url);
+      const duration = await probeDuration(inputPath);
+      const t = this.frameTimeSec(node.data.params.time, duration);
+
+      const name = `${nanoid()}.png`;
+      await fs.mkdir(projectAssetsDir(this.projectId), { recursive: true });
+      const outPath = path.join(projectAssetsDir(this.projectId), name);
+      await extractFrame(inputPath, t, outPath);
+
+      const output: Output = {
+        id: nanoid(),
+        kind: "image",
+        url: `/assets/${this.projectId}/${name}`,
+        meta: { provider: "ffmpeg", model: "frame_extract" },
         createdAt: new Date().toISOString(),
       };
       node.data.outputs.push(output);

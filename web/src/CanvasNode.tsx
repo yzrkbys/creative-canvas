@@ -36,6 +36,7 @@ export function CanvasNode({ data, selected }: NodeProps) {
   const isNote = node.type === "note";
   const isDoc = node.type === "doc";
   const isFrame = node.type === "frame";
+  const isFrameExtract = node.type === "frame_extract";
   const isText = isNote || isDoc;
   const hasPrompt =
     node.type === "image_gen" || node.type === "image_edit" || node.type === "video_gen";
@@ -211,6 +212,33 @@ export function CanvasNode({ data, selected }: NodeProps) {
     />
   );
 
+  // ---- frame_extract: scrub an input video and grab one frame ----
+  if (isFrameExtract) {
+    return (
+      <>
+        {resizer}
+        {floatBar}
+        {handles}
+        <div className="cn cn-frame_extract">
+          <FrameExtractBody node={node} blocked={blocked} generating={generating} onRun={onRun} />
+          <div className="cn-chip-type">{node.type}</div>
+          <span className="cn-status-dot" style={{ background: STATUS_COLOR[node.status] }} title={node.error || node.status} />
+        </div>
+        {lightbox && mediaOut &&
+          createPortal(
+            <div className="cn-lightbox" onClick={() => setLightbox(false)}>
+              {isVideoUrl(mediaOut.url) ? (
+                <video src={mediaOut.url} controls autoPlay loop />
+              ) : (
+                <img src={mediaOut.url} alt="output" />
+              )}
+            </div>,
+            document.body,
+          )}
+      </>
+    );
+  }
+
   // ---- text nodes (note / doc): editor fills the node ----
   if (isText) {
     return (
@@ -346,5 +374,131 @@ export function CanvasNode({ data, selected }: NodeProps) {
           document.body,
         )}
     </>
+  );
+}
+
+function fmtTime(s: number): string {
+  if (!Number.isFinite(s) || s < 0) s = 0;
+  const m = Math.floor(s / 60);
+  const sec = s - m * 60;
+  return `${m}:${sec.toFixed(2).padStart(5, "0")}`;
+}
+
+// Body for frame_extract: shows the connected input video with a scrubber;
+// "抽出" extracts the frame at the chosen time on the server (ffmpeg) -> image.
+function FrameExtractBody({
+  node,
+  blocked,
+  generating,
+  onRun,
+}: {
+  node: GraphNode;
+  blocked: boolean;
+  generating: boolean;
+  onRun: () => void;
+}) {
+  const graph = useStore((s) => s.graph);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [dur, setDur] = useState(0);
+  const [t, setT] = useState<number>(
+    typeof node.data.params.time === "number" ? (node.data.params.time as number) : 0,
+  );
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const inUrl = (() => {
+    if (!graph) return "";
+    const edge = graph.edges.find(
+      (e) => e.target === node.id && e.targetHandle === "video_in",
+    );
+    if (!edge) return "";
+    const src = graph.nodes.find((n) => n.id === edge.source);
+    if (!src) return "";
+    const vid = [...(src.data.outputs ?? [])].reverse().find((o) => o.kind === "video");
+    return vid?.url ?? "";
+  })();
+
+  const out = node.data.outputs[node.data.outputs.length - 1];
+  const max = Number.isFinite(dur) && dur > 0 ? dur : 0;
+
+  function commit(time: number) {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      api.updateNode(node.id, { data: { params: { time } } }).catch(() => {});
+    }, 250);
+  }
+  function seek(time: number) {
+    const clamped = Math.max(0, Math.min(max || time, time));
+    setT(clamped);
+    if (videoRef.current) videoRef.current.currentTime = clamped;
+    commit(clamped);
+  }
+  async function runHere() {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    try {
+      await api.updateNode(node.id, { data: { params: { time: t } } });
+    } catch {
+      /* ignore */
+    }
+    onRun();
+  }
+
+  if (!inUrl) {
+    return (
+      <div className="cn-body">
+        <div className="cn-empty">video_in に動画ノードを接続してください</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="cn-body cn-fx">
+      <video
+        ref={videoRef}
+        src={inUrl}
+        muted
+        playsInline
+        preload="auto"
+        className="cn-media"
+        onLoadedMetadata={(e) => {
+          const d = e.currentTarget.duration || 0;
+          setDur(d);
+          const p = node.data.params.time;
+          let init =
+            typeof p === "number"
+              ? p
+              : String(p ?? "").toLowerCase() === "last"
+                ? Math.max(0, d - 0.05)
+                : 0;
+          init = Math.max(0, Math.min(d || init, init));
+          setT(init);
+          e.currentTarget.currentTime = init;
+        }}
+      />
+      <div className="cn-fx-ctrls nodrag">
+        <input
+          type="range"
+          min={0}
+          max={max}
+          step={0.01}
+          value={t}
+          disabled={!max}
+          onChange={(e) => seek(Number(e.target.value))}
+        />
+        <div className="cn-fx-row">
+          <span className="cn-fx-time">
+            {fmtTime(t)} / {fmtTime(dur)}
+          </span>
+          <button className="cn-fx-q" onClick={() => seek(0)}>先頭</button>
+          <button className="cn-fx-q" onClick={() => seek(max / 2)}>中央</button>
+          <button className="cn-fx-q" onClick={() => seek(Math.max(0, max - 0.05))}>末尾</button>
+        </div>
+        <button className="cn-ob-run" onClick={runHere} disabled={blocked || !max}>
+          {generating ? "抽出中…" : "このコマを抽出"}
+        </button>
+        {out && out.kind === "image" && (
+          <img src={out.url} alt="frame" className="cn-fx-thumb" />
+        )}
+      </div>
+    </div>
   );
 }

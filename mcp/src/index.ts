@@ -114,9 +114,11 @@ server.tool(
 
 server.tool(
   "canvas_add_node",
-  "Add a node. type=image_gen|image_edit|video_gen|image_upload|video_upscale|note|doc|web_clip|frame. " +
+  "Add a node. type=image_gen|image_edit|video_gen|image_upload|video_upscale|video_concat|frame_extract|note|doc|web_clip|frame. " +
     "note/doc = editable text (set content with canvas_set_prompt; doc is long-form). " +
     "web_clip = fetch a URL to text (set params.url, then canvas_run). " +
+    "video_concat = join clips on clip_in (ordered left->right by node x). " +
+    "frame_extract = grab one frame from video_in at params.time (seconds | first | last | NN%), then canvas_run -> image_out. " +
     "frame = visual group/label box (set title with canvas_set_prompt).",
   {
     type: z.enum([
@@ -126,6 +128,7 @@ server.tool(
       "image_upload",
       "video_upscale",
       "video_concat",
+      "frame_extract",
       "note",
       "doc",
       "web_clip",

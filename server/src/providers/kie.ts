@@ -248,6 +248,26 @@ function buildInput(
     return input;
   }
 
+  if (modelId === "kie/gemini-omni-video") {
+    // Gemini Omni "reference anything" video on KIE's unified jobs API.
+    // input quota: images + videos*2 + characters <= 7.
+    const input: Record<string, unknown> = {
+      prompt,
+      duration: Number(params.duration ?? 8),
+      aspect_ratio: params.aspect_ratio ?? "16:9",
+      resolution: params.resolution ?? "720p",
+    };
+    const seed = params.seed;
+    if (seed !== undefined && seed !== null && seed !== "") input.seed = Number(seed);
+    // image references: first-frame and reference-image ports (max 7 image units)
+    const imgs = [...byPort("image_in"), ...byPort("ref_in")];
+    const vids = byPort("ref_video_in");
+    if (imgs.length) input.image_urls = imgs.slice(0, 7);
+    // each video counts as 2 quota units; start/ends trim the source segment (seconds)
+    if (vids.length) input.video_list = vids.slice(0, 3).map((u) => ({ url: u, start: 0, ends: 10 }));
+    return input;
+  }
+
   if (modelId === "kie/topaz-video-upscale") {
     const vid = byPort("video_in")[0] ?? inputs.find((i) => i.kind === "video")?.url;
     if (!vid)
@@ -395,6 +415,15 @@ function estimate(model: string, params: Record<string, unknown>): CostEstimate 
       currency: "USD",
       note: `${fast ? "seedance-2.0-fast" : "seedance-2.0"} ${dur}s ${res} ${params.mode ?? ""} (概算)`,
     };
+  }
+  if (model === "kie/gemini-omni-video") {
+    // NOTE: exact KIE pricing not published here; actual cost is reported as
+    // creditsConsumed after the run. This is a rough advisory estimate only.
+    const dur = Number(params.duration ?? 8);
+    const res = params.resolution ?? "720p";
+    const resMul = res === "4k" ? 4 : res === "1080p" ? 2 : 1;
+    const amount = Number((0.15 * dur * resMul).toFixed(2));
+    return { amount, currency: "USD", note: `gemini-omni-video ${dur}s ${res} (概算・要確認)` };
   }
   if (model === "kie/topaz-video-upscale") {
     const f = String(params.upscale_factor ?? "2");

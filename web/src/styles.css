@@ -292,6 +292,9 @@ body,
 .cnode-video_concat {
   border-top: 3px solid #6366f1;
 }
+.cnode-frame_extract {
+  border-top: 3px solid #a855f7;
+}
 .cnode-hint {
   font-size: 10px;
   color: #8b949e;
@@ -611,6 +614,16 @@ textarea.cnode-doc {
 .cn-video_gen { border-color: #0ea5e9; }
 .cn-video_upscale { border-color: #f59e0b; }
 .cn-video_concat { border-color: #6366f1; }
+.cn-frame_extract { border-color: #a855f7; }
+.cn-fx { display: flex; flex-direction: column; }
+.cn-fx video.cn-media { background: #000; }
+.cn-fx-ctrls { display: flex; flex-direction: column; gap: 4px; padding: 6px; }
+.cn-fx-ctrls input[type="range"] { width: 100%; }
+.cn-fx-row { display: flex; align-items: center; gap: 6px; }
+.cn-fx-time { font-size: 11px; color: #cbd5e1; font-variant-numeric: tabular-nums; flex: 1; }
+.cn-fx-q { font-size: 10px; padding: 2px 6px; border-radius: 4px; border: 1px solid #475569; background: #1e293b; color: #e2e8f0; cursor: pointer; }
+.cn-fx-q:hover { background: #334155; }
+.cn-fx-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 4px; border: 1px solid #475569; margin-top: 2px; }
 .cn-note { border-color: #22c55e; }
 .cn-doc { border-color: #16a34a; }
 .cn-web_clip { border-color: #14b8a6; }
