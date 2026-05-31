@@ -6,6 +6,7 @@ export type NodeType =
   | "image_upload"
   | "video_upscale"
   | "video_concat"
+  | "frame_extract"
   | "note"
   | "doc"
   | "web_clip"

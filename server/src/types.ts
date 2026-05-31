@@ -8,6 +8,7 @@ export type NodeType =
   | "image_upload"
   | "video_upscale"
   | "video_concat"
+  | "frame_extract"
   | "note"
   | "doc"
   | "web_clip"
@@ -122,7 +123,7 @@ export interface ProviderRunResult {
 }
 
 export interface ProviderAdapter {
-  id: "fal" | "kie" | "mock";
+  id: "fal" | "kie" | "mock" | "xai";
   supports(model: string): boolean;
   estimateCost(
     model: string,
@@ -136,7 +137,7 @@ export interface ProviderAdapter {
 
 export interface ModelSpec {
   id: string; // e.g. "fal/gpt-image-2"
-  provider: "fal" | "kie" | "mock" | "builtin";
+  provider: "fal" | "kie" | "mock" | "builtin" | "xai";
   path: string; // provider endpoint id, e.g. "fal-ai/gpt-image-1"
   kind: OutputKind; // primary output kind
   nodeTypes: NodeType[]; // which node types may use this model

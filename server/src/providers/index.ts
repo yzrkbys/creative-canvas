@@ -1,9 +1,10 @@
 import { falAdapter } from "./fal.js";
 import { kieAdapter } from "./kie.js";
+import { xaiAdapter } from "./xai.js";
 import { mockAdapter } from "./mock.js";
 import type { ProviderAdapter } from "../types.js";
 
-const ADAPTERS: ProviderAdapter[] = [falAdapter, kieAdapter];
+const ADAPTERS: ProviderAdapter[] = [falAdapter, kieAdapter, xaiAdapter];
 
 export function isMockMode(): boolean {
   return process.env.MOCK_PROVIDER === "1" || process.env.MOCK_PROVIDER === "true";

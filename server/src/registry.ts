@@ -252,6 +252,23 @@ export const MODELS: ModelSpec[] = [
     },
   },
   {
+    id: "kie/gemini-omni-video",
+    provider: "kie",
+    path: "gemini-omni-video",
+    kind: "video",
+    nodeTypes: ["video_gen"],
+    priceHint: "従量・要確認（4k/長尺ほど高額。概算 ~$0.15/s×res）",
+    paramSchema: [
+      // duration is REQUIRED by the API (seconds): 4 | 6 | 8 | 10
+      { key: "duration", label: "Duration (s)", type: "select", options: ["4", "6", "8", "10"] },
+      { key: "aspect_ratio", label: "Aspect", type: "select", options: ["16:9", "9:16"] },
+      { key: "resolution", label: "Resolution", type: "select", options: ["720p", "1080p", "4k"] },
+      // optional deterministic seed [0, 2147483647]
+      { key: "seed", label: "Seed", type: "number", min: 0, max: 2147483647, step: 1 },
+    ],
+    defaults: { duration: "8", aspect_ratio: "16:9", resolution: "720p" },
+  },
+  {
     id: "kie/kling-3.0",
     provider: "kie",
     path: "kling-3.0/video",
@@ -319,6 +336,27 @@ export const MODELS: ModelSpec[] = [
       { key: "mode", label: "Mode", type: "select", options: ["t2v", "i2v"] },
     ],
     defaults: { duration: 5, resolution: "720p", mode: "i2v" },
+  },
+  {
+    id: "xai/grok-imagine-video-1.5",
+    provider: "xai",
+    path: "grok-imagine-video-1.5-preview",
+    kind: "video",
+    nodeTypes: ["video_gen"],
+    priceHint: "≈$0.08/s (xAI direct・720p上限・i2v/t2v)",
+    paramSchema: [
+      // i2v=first frame (image_in) / t2v=text only. (1.5-preview は r2v 非対応)
+      { key: "mode", label: "Mode", type: "select", options: ["i2v", "t2v"] },
+      { key: "duration", label: "Duration (s)", type: "number", min: 1, max: 15, step: 1 },
+      { key: "resolution", label: "Resolution", type: "select", options: ["480p", "720p"] },
+      {
+        key: "aspect_ratio",
+        label: "Aspect",
+        type: "select",
+        options: ["16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3"],
+      },
+    ],
+    defaults: { mode: "i2v", duration: 8, resolution: "720p", aspect_ratio: "16:9" },
   },
   {
     id: "kie/topaz-video-upscale",
