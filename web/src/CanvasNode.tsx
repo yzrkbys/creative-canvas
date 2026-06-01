@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Handle, NodeResizer, Position, type NodeProps } from "@xyflow/react";
 import type { GraphNode, OutputKind, ParamField } from "./types";
 import { PORTS } from "./ports";
+import { labelOf, labelOfPort } from "./labels";
 import { useStore, archiveNode } from "./store";
 import { api } from "./api";
 
@@ -187,14 +188,16 @@ export function CanvasNode({ data, selected }: NodeProps) {
     <>
       {def.inputs.map((inp, i) => (
         <Handle key={inp.port} id={inp.port} type="target" position={Position.Left}
+          title={`${labelOfPort(inp.port)}${inp.required ? "（必須）" : ""} · ${inp.port}`}
           style={{ top: 34 + i * 20, background: KIND_COLOR[inp.kind], border: inp.required ? "2px solid #fff" : "1px solid #fff" }}>
-          <span className="port-label port-in">{inp.port}{inp.required ? "*" : ""}</span>
+          <span className="port-label port-in">{labelOfPort(inp.port)}{inp.required ? " *" : ""}</span>
         </Handle>
       ))}
       {def.output && (
         <Handle id={def.output.port} type="source" position={Position.Right}
+          title={`${labelOfPort(def.output.port)} · ${def.output.port}`}
           style={{ top: 34, background: KIND_COLOR[def.output.kind] }}>
-          <span className="port-label port-out">{def.output.port}</span>
+          <span className="port-label port-out">{labelOfPort(def.output.port)}</span>
         </Handle>
       )}
     </>
@@ -221,7 +224,7 @@ export function CanvasNode({ data, selected }: NodeProps) {
         {handles}
         <div className="cn cn-frame_extract">
           <FrameExtractBody node={node} blocked={blocked} generating={generating} onRun={onRun} />
-          <div className="cn-chip-type">{node.type}</div>
+          <div className="cn-chip-type">{labelOf(node.type)}</div>
           <span className="cn-status-dot" style={{ background: STATUS_COLOR[node.status] }} title={node.error || node.status} />
         </div>
         {lightbox && mediaOut &&
@@ -247,7 +250,7 @@ export function CanvasNode({ data, selected }: NodeProps) {
         {floatBar}
         {handles}
         <div className={`cn cn-${node.type}`}>
-          <div className="cn-tophdr">{node.type}</div>
+          <div className="cn-tophdr">{labelOf(node.type)}</div>
           <textarea className="nodrag cn-textarea"
             placeholder={isDoc ? "ドキュメント本文（台本・記事など）" : "メモ / 内容"}
             value={prompt} onFocus={() => (focused.current = true)} onBlur={saveContent}
@@ -289,7 +292,7 @@ export function CanvasNode({ data, selected }: NodeProps) {
           )}
         </div>
 
-        <div className="cn-chip-type">{node.type}</div>
+        <div className="cn-chip-type">{labelOf(node.type)}</div>
         <span className="cn-status-dot" style={{ background: STATUS_COLOR[node.status] }} title={node.error || node.status} />
 
         {/* always-on overlaid control bar (icons + pulldowns) */}

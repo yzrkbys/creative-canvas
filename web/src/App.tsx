@@ -18,12 +18,13 @@ import {
 } from "@xyflow/react";
 import { api } from "./api";
 import {
-  initStore, useStore, getNode, closeProject,
+  initStore, useStore, getNode, closeProject, refreshGraph,
   isArchived, archiveNode, restoreNode, permanentlyDelete, undoLastArchive,
 } from "./store";
 import { CanvasNode } from "./CanvasNode";
 import { Dashboard } from "./Dashboard";
 import { PORTS, inKind, outKind } from "./ports";
+import { labelOf } from "./labels";
 import type { NodeType, OutputKind, PortIn, PortOut } from "./types";
 
 // node types that can receive an output of `kind`, with the input port to use
@@ -313,6 +314,7 @@ function Flow() {
   const nodeCount = (graph?.nodes.length ?? 0) - archivedNodes.length;
   const [menuOpen, setMenuOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [resyncing, setResyncing] = useState(false);
 
   return (
     <div className="app">
@@ -338,8 +340,9 @@ function Flow() {
                         addNode(t);
                         setMenuOpen(false);
                       }}
+                      title={t}
                     >
-                      {t}
+                      {labelOf(t)}
                     </button>
                   ))}
                 </div>
@@ -353,6 +356,18 @@ function Flow() {
         </span>
         {mock && <span className="pill mock">MOCK (no cost)</span>}
         <span className="muted">{nodeCount} nodes</span>
+        <button
+          className="ghost-btn"
+          onClick={async () => {
+            setResyncing(true);
+            await refreshGraph();
+            setTimeout(() => setResyncing(false), 400);
+          }}
+          disabled={resyncing}
+          title="生成中のまま固まった時などにグラフを再取得"
+        >
+          {resyncing ? "更新中…" : "↻ 再同期"}
+        </button>
         <button
           className={`archive-btn${archiveOpen ? " on" : ""}`}
           onClick={() => setArchiveOpen((o) => !o)}
@@ -395,8 +410,8 @@ function Flow() {
             <div className="picker-menu" style={{ left: picker.sx, top: picker.sy }}>
               <div className="picker-title">接続して作成（{picker.kind}）</div>
               {candidatesFor(picker.kind).map(({ type, port }) => (
-                <button key={type} onClick={() => createConnected(type, port)}>
-                  {type} <span className="picker-port">{port}</span>
+                <button key={type} onClick={() => createConnected(type, port)} title={type}>
+                  {labelOf(type)} <span className="picker-port">{port}</span>
                 </button>
               ))}
             </div>
