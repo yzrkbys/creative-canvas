@@ -143,6 +143,22 @@ body,
 .dash-head button.ghost:hover {
   background: #30363d;
 }
+.toolbar .ghost-btn {
+  background: transparent;
+  color: #c9d1d9;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.toolbar .ghost-btn:hover {
+  background: #21262d;
+}
+.toolbar .ghost-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
 .dash-head button.ghost:disabled {
   opacity: 0.6;
   cursor: default;
@@ -576,24 +592,60 @@ textarea.cnode-doc {
 }
 
 /* port labels */
+/* Port labels appear on hover (or while connecting) as small pills, so the
+   handle's color/position alone don't have to convey what the port means. */
 .port-label {
   position: absolute;
-  font-size: 9px;
-  color: #8b949e;
+  font-size: 10px;
+  font-weight: 500;
+  color: #e6edf3;
   white-space: nowrap;
   pointer-events: none;
+  background: rgba(13, 17, 23, 0.92);
+  border: 1px solid #30363d;
+  padding: 2px 6px;
+  border-radius: 4px;
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: opacity 120ms ease;
+  z-index: 11; /* above .cn-pop and .cn-floatbar so the label is always readable */
 }
 .port-in {
-  left: 10px;
-  top: -6px;
+  left: 16px;
+  top: 50%;
 }
 .port-out {
-  right: 10px;
-  top: -6px;
+  right: 16px;
+  top: 50%;
+}
+.react-flow__handle:hover .port-label,
+.react-flow__handle.connectingfrom .port-label,
+.react-flow__handle-connecting .port-label {
+  opacity: 1;
 }
 .react-flow__handle {
-  width: 10px;
-  height: 10px;
+  width: 11px;
+  height: 11px;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+/* invisible larger hit-area so the handle is easy to grab */
+.react-flow__handle::after {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+}
+/* hover/active feedback so you know the handle is graspable */
+.react-flow__handle:hover {
+  transform: scale(1.65);
+  box-shadow: 0 0 0 5px rgba(88, 166, 255, 0.22);
+  z-index: 5;
+}
+.react-flow__handle.connectingfrom,
+.react-flow__handle-connecting {
+  transform: scale(1.65);
+  box-shadow: 0 0 0 6px rgba(88, 166, 255, 0.32);
+  z-index: 5;
 }
 
 /* ===== node layout v3: aspect-fit, overlaid icon controls, float bar ===== */
@@ -604,7 +656,9 @@ textarea.cnode-doc {
   border: 1px solid #30363d;
   border-radius: 10px;
   position: relative;
-  overflow: hidden;
+  /* overflow: visible so popovers / labels can extend past the node bounds when
+     the node is small. Media is clipped by .cn-body below. */
+  overflow: visible;
   font-size: 12px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
 }
@@ -637,6 +691,7 @@ textarea.cnode-doc {
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  border-radius: inherit; /* keep media clipped to the node's rounded corners */
 }
 .cn-media {
   width: 100%;
@@ -773,7 +828,10 @@ textarea.cnode-doc {
   left: 6px;
   right: 6px;
   bottom: 42px;
-  max-height: 62%;
+  /* node サイズに依存せず必ず全項目が出るように画面基準で確保。小さなノードでは
+     上方向にノード外へ広がる (.cn は overflow:visible)。 */
+  min-width: 200px;
+  max-height: min(60vh, 480px);
   overflow: auto;
   background: rgba(13, 17, 23, 0.97);
   border: 1px solid #30363d;

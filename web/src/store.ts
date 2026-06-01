@@ -79,7 +79,13 @@ function connectWs() {
   ws = new WebSocket(`${proto}://${location.host}/ws`);
   ws.onopen = () => {
     set({ connected: true });
-    if (state.projectId) subscribe(state.projectId);
+    if (state.projectId) {
+      subscribe(state.projectId);
+      // After a (possibly silent) WS reconnect, ws-derived events for jobs that
+      // finished while we were disconnected are gone. Force a fresh graph so the
+      // UI catches up immediately.
+      void refreshGraph();
+    }
   };
   ws.onclose = () => {
     set({ connected: false });
@@ -114,6 +120,36 @@ export async function initStore() {
     /* server may still be starting */
   }
   connectWs();
+  startStuckPoller();
+}
+
+// ---- stuck-state poller ----------------------------------------------------
+// WebSocket connections can die silently (e.g. laptop sleep, network blip) —
+// the browser keeps the socket "open" but events stop arriving, so a node that
+// finished while disconnected stays "running" in the UI forever. While any
+// running/queued node exists, periodically refetch the graph as a safety net.
+let stuckTimer: ReturnType<typeof setInterval> | null = null;
+function startStuckPoller() {
+  if (stuckTimer) return;
+  stuckTimer = setInterval(() => {
+    if (state.view !== "project" || !state.projectId || !state.graph) return;
+    const busy = state.graph.nodes.some(
+      (n) => n.status === "running" || n.status === "queued",
+    );
+    if (busy) void refreshGraph();
+  }, 12000);
+}
+
+export async function refreshGraph() {
+  if (!state.projectId) return;
+  const pid = state.projectId;
+  try {
+    const fresh = await api.getGraph();
+    // The user may have switched projects mid-fetch — only apply if still on it.
+    if (state.projectId === pid) set({ graph: fresh });
+  } catch {
+    /* ignore transient */
+  }
 }
 
 export async function refreshProjects() {
