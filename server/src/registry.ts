@@ -188,6 +188,29 @@ export const MODELS: ModelSpec[] = [
     ],
     defaults: { size: "1024x1024", quality: "medium", n: 1 },
   },
+  {
+    id: "fal/mai-image-2.5",
+    provider: "fal",
+    path: "microsoft/mai-image-2.5",
+    kind: "image",
+    // fal endpoint exposes text-to-image only (no image input in the schema).
+    nodeTypes: ["image_gen"],
+    priceHint: "≈$0.03 / image (needs FAL_KEY)",
+    paramSchema: [
+      {
+        key: "aspect_ratio",
+        label: "Aspect",
+        type: "select",
+        // Docs list auto/21:9/16:9/3:2/4:3/5:4/1:1/4:5/3:4/2:3/9:16, but empirical
+        // testing (2026-06-03) showed the fal endpoint silently falls back to 1:1
+        // (1024x1024) for 4:5, 5:4 and 21:9. Only the verified-honored set is offered.
+        options: ["auto", "1:1", "2:3", "3:2", "3:4", "4:3", "16:9", "9:16"],
+      },
+      { key: "output_format", label: "Format", type: "select", options: ["png", "jpeg", "webp"] },
+      { key: "num_images", label: "Count", type: "number", min: 1, max: 4, step: 1 },
+    ],
+    defaults: { aspect_ratio: "auto", output_format: "png", num_images: 1 },
+  },
 
   // ---------------- VIDEO ----------------
   {

@@ -108,6 +108,15 @@ export const falAdapter: ProviderAdapter = {
         note: `${dur}s @ ${params.resolution ?? spec.defaults.resolution}`,
       };
     }
+    // mai-image-2.5: flat per-image rate, count via num_images
+    if (model === "fal/mai-image-2.5") {
+      const cnt = Number(params.num_images ?? 1);
+      return {
+        amount: Number((0.03 * cnt).toFixed(2)),
+        currency: "USD",
+        note: `${cnt} image(s)`,
+      };
+    }
     const n = Number(params.n ?? 1);
     const per = params.quality === "high" ? 0.17 : params.quality === "low" ? 0.02 : 0.07;
     void inputs;
