@@ -22,6 +22,7 @@ import {
   isArchived, archiveNode, restoreNode, permanentlyDelete, undoLastArchive,
 } from "./store";
 import { CanvasNode } from "./CanvasNode";
+import { CutEdge } from "./CutEdge";
 import { Dashboard } from "./Dashboard";
 import { PORTS, inKind, outKind } from "./ports";
 import { labelOf } from "./labels";
@@ -36,6 +37,8 @@ function candidatesFor(kind: OutputKind): { type: NodeType; port: PortIn }[] {
   }
   return res;
 }
+
+const edgeTypes = { cut: CutEdge };
 
 const nodeTypes: NodeTypes = {
   image_gen: CanvasNode,
@@ -174,6 +177,7 @@ function Flow() {
         .filter((e) => !archivedIds.has(e.source) && !archivedIds.has(e.target))
         .map((e) => ({
         id: e.id,
+        type: "cut",
         source: e.source,
         target: e.target,
         sourceHandle: e.sourceHandle,
@@ -388,6 +392,8 @@ function Flow() {
           nodes={rfNodes}
           edges={rfEdges}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          defaultEdgeOptions={{ type: "cut" }}
           onNodesChange={handleNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
@@ -431,12 +437,32 @@ function Flow() {
               )}
               {archivedNodes.map((n) => {
                 const o = n.data.outputs[n.data.outputs.length - 1];
-                const thumb = o && o.kind !== "text" && !/\.(mp4|webm|mov)$/i.test(o.url) ? o.url : null;
+                const isVideo = !!o && o.kind === "video" && /\.(mp4|webm|mov)$/i.test(o.url);
+                const isImage = !!o && o.kind !== "text" && !isVideo && !!o.url;
+                const isText = !!o && o.kind === "text";
+                const noteText =
+                  (n.type === "note" || n.type === "doc") ? n.data.prompt : null;
                 const label = n.data.prompt?.trim()?.slice(0, 40) || n.type;
                 return (
                   <div key={n.id} className="archive-item">
-                    {thumb ? (
-                      <img src={thumb} alt="" className="archive-thumb" />
+                    {isImage ? (
+                      <img src={o!.url} alt="" className="archive-thumb" />
+                    ) : isVideo ? (
+                      <video
+                        src={o!.url}
+                        className="archive-thumb"
+                        muted
+                        playsInline
+                        preload="metadata"
+                      />
+                    ) : isText ? (
+                      <div className="archive-thumb text">
+                        {(o!.text || "").slice(0, 80) || "(空)"}
+                      </div>
+                    ) : noteText ? (
+                      <div className="archive-thumb text">
+                        {noteText.slice(0, 80) || "(空)"}
+                      </div>
                     ) : (
                       <div className="archive-thumb ph">{n.type}</div>
                     )}
