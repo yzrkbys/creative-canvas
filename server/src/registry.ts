@@ -177,7 +177,10 @@ export const MODELS: ModelSpec[] = [
   {
     id: "fal/gpt-image-2",
     provider: "fal",
-    path: "fal-ai/gpt-image-1",
+    // fal split gpt-image-1 into subpaths (~2026-06): the base `fal-ai/gpt-image-1`
+    // now 404s. T2I lives at `/text-to-image`, edit at `/edit-image`. This default is
+    // the T2I path; fal.ts run() swaps to `/edit-image` when an input image is present.
+    path: "fal-ai/gpt-image-1/text-to-image",
     kind: "image",
     nodeTypes: ["image_gen", "image_edit"],
     priceHint: "$0.01–0.41 / image (needs FAL_KEY)",
@@ -210,6 +213,112 @@ export const MODELS: ModelSpec[] = [
       { key: "num_images", label: "Count", type: "number", min: 1, max: 4, step: 1 },
     ],
     defaults: { aspect_ratio: "auto", output_format: "png", num_images: 1 },
+  },
+  {
+    id: "fal/mai-image-2.5-edit",
+    provider: "fal",
+    path: "microsoft/mai-image-2.5/edit",
+    kind: "image",
+    // i2i edit endpoint (added by fal ~2026-06-04; the T2I-only era ended).
+    // image_urls is typed as an array but the endpoint accepts AT MOST ONE image
+    // (2 images -> 422 "List should have at most 1 item"). Single-source edit only;
+    // no multi-image compositing. Verified 2026-06-04: keeps MAI's own retro-cel
+    // style while repairing Japanese sign text / doing targeted attribute edits.
+    //
+    // NO aspect_ratio param: the edit endpoint IGNORES aspect_ratio and ALWAYS
+    // preserves the input image's aspect ratio (verified 2026-06-04 direct against
+    // fal: a portrait 2:3 input returns 2:3 for aspect_ratio 16:9 / 1:1 / 9:16 alike,
+    // despite the param appearing in fal's OpenAPI). Offering it would mislead — to
+    // change the output aspect, pre-pad/crop/outpaint the INPUT to the target ratio.
+    nodeTypes: ["image_edit"],
+    priceHint: "≈$0.03 / image (needs FAL_KEY)",
+    paramSchema: [
+      { key: "output_format", label: "Format", type: "select", options: ["png", "jpeg", "webp"] },
+      { key: "num_images", label: "Count", type: "number", min: 1, max: 4, step: 1 },
+    ],
+    defaults: { output_format: "png", num_images: 1 },
+  },
+  {
+    id: "fal/ideogram-v4",
+    provider: "fal",
+    path: "ideogram/v4",
+    kind: "image",
+    // fal endpoint is text-to-image only (no image input in the schema).
+    nodeTypes: ["image_gen"],
+    priceHint: "≈$0.03–0.13 / image (TURBO→QUALITY, +$0.03 expand; needs FAL_KEY)",
+    paramSchema: [
+      {
+        key: "image_size",
+        label: "Size",
+        type: "select",
+        // fal enum set (all ≈1MP). Custom {width,height} not exposed here.
+        options: [
+          "square_hd",
+          "square",
+          "portrait_4_3",
+          "portrait_16_9",
+          "landscape_4_3",
+          "landscape_16_9",
+        ],
+      },
+      {
+        key: "rendering_speed",
+        label: "Speed",
+        type: "select",
+        options: ["TURBO", "BALANCED", "QUALITY"],
+      },
+      // ParamField has no boolean type, so this select yields "true"/"false"
+      // strings that fal.ts buildInput coerces to a real boolean. Default OFF:
+      // expansion rewrites the prompt with an LLM and adds a flat $0.03/image —
+      // unwanted for hand-authored prompts.
+      {
+        key: "enable_prompt_expansion",
+        label: "Expand prompt",
+        type: "select",
+        options: ["false", "true"],
+      },
+      { key: "num_images", label: "Count", type: "number", min: 1, max: 4, step: 1 },
+      { key: "output_format", label: "Format", type: "select", options: ["png", "jpeg"] },
+    ],
+    defaults: {
+      image_size: "square_hd",
+      rendering_speed: "BALANCED",
+      enable_prompt_expansion: "false",
+      num_images: 1,
+      output_format: "png",
+    },
+  },
+  {
+    id: "fal/krea-v2",
+    provider: "fal",
+    path: "krea/v2/large/text-to-image",
+    kind: "image",
+    // image_gen = pure T2I. image_edit = T2I + style references: any image fed to the
+    // node (ref_in/image_in) is passed as image_style_references (Krea's --sref analog).
+    nodeTypes: ["image_gen", "image_edit"],
+    priceHint: "≈$0.06 / image ($0.065 with style refs, needs FAL_KEY)",
+    paramSchema: [
+      {
+        key: "aspect_ratio",
+        label: "Aspect",
+        type: "select",
+        options: ["1:1", "4:3", "3:2", "16:9", "2.35:1", "4:5", "2:3", "9:16"],
+      },
+      {
+        // Krea-specific: how freely the model reinterprets the prompt (raw = literal,
+        // high = most stylised/artistic). The "MJ-like" knob, akin to --stylize.
+        key: "creativity",
+        label: "Creativity",
+        type: "select",
+        options: ["raw", "low", "medium", "high"],
+      },
+      { key: "seed", label: "Seed", type: "number", min: 0, max: 2147483647, step: 1 },
+      // Applies to style references (image_edit nodes). 1 = full transfer (can override
+      // the subject), ~0.5–0.7 = style-only on your own subject, negative = push away.
+      // Ignored for pure T2I. Not in defaults so T2I nodes never carry it.
+      { key: "style_strength", label: "Style strength", type: "number", min: -1, max: 2, step: 0.1 },
+    ],
+    defaults: { aspect_ratio: "1:1", creativity: "medium" },
   },
 
   // ---------------- VIDEO ----------------

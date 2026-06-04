@@ -702,6 +702,24 @@ export class Canvas extends EventEmitter {
     return output;
   }
 
+  // Attach a browser-uploaded video (data: URL) to an existing node.
+  async uploadVideoToNode(id: string, dataUrl: string): Promise<Output> {
+    const node = this.node(id);
+    const { localUrl } = await downloadToAssets(dataUrl, "video", this.projectId);
+    const output: Output = {
+      id: nanoid(),
+      kind: "video",
+      url: localUrl,
+      meta: { provider: "upload", model: "upload" },
+      createdAt: new Date().toISOString(),
+    };
+    node.data.outputs.push(output);
+    this.touch();
+    this.emitEvent({ type: "node:output", id: node.id, output });
+    this.setStatus(node, "succeeded");
+    return output;
+  }
+
   // Import a browser-uploaded document (data: URL) into a node as text.
   async importFileToNode(id: string, dataUrl: string, filename: string): Promise<Output> {
     const node = this.node(id);

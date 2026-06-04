@@ -88,6 +88,9 @@ export function createHttpApp(projects: ProjectManager) {
   app.post("/api/projects/:pid/nodes/:id/upload-file", hc((c, req) =>
     c.uploadToNode(req.params.id, req.body.dataUrl),
   ));
+  app.post("/api/projects/:pid/nodes/:id/upload-video", hc((c, req) =>
+    c.uploadVideoToNode(req.params.id, req.body.dataUrl),
+  ));
   app.post("/api/projects/:pid/nodes/:id/import-file", hc((c, req) =>
     c.importFileToNode(req.params.id, req.body.dataUrl, req.body.filename),
   ));

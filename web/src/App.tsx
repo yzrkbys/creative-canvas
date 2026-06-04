@@ -45,6 +45,7 @@ const nodeTypes: NodeTypes = {
   image_edit: CanvasNode,
   video_gen: CanvasNode,
   image_upload: CanvasNode,
+  video_upload: CanvasNode,
   video_upscale: CanvasNode,
   video_concat: CanvasNode,
   frame_extract: CanvasNode,
@@ -61,7 +62,7 @@ function defaultSize(t: NodeType): { w: number; h: number } {
   if (t === "note") return { w: 260, h: 210 };
   if (t === "doc") return { w: 280, h: 300 };
   if (t === "web_clip" || t === "file_import") return { w: 260, h: 230 };
-  if (t === "video_gen" || t === "video_upscale" || t === "video_concat")
+  if (t === "video_gen" || t === "video_upscale" || t === "video_concat" || t === "video_upload")
     return { w: 300, h: 280 };
   if (t === "frame_extract") return { w: 300, h: 340 };
   return { w: 280, h: 300 }; // image_gen / image_edit / image_upload
@@ -69,7 +70,7 @@ function defaultSize(t: NodeType): { w: number; h: number } {
 
 // Grouped node palette for the "+ Add node" menu (scales as types grow).
 const NODE_GROUPS: { label: string; types: NodeType[] }[] = [
-  { label: "メディア", types: ["image_gen", "image_edit", "video_gen", "image_upload", "video_upscale", "video_concat", "frame_extract"] },
+  { label: "メディア", types: ["image_gen", "image_edit", "video_gen", "image_upload", "video_upload", "video_upscale", "video_concat", "frame_extract"] },
   { label: "テキスト / 情報", types: ["note", "doc", "web_clip", "file_import"] },
   { label: "レイアウト", types: ["frame"] },
 ];
@@ -91,7 +92,8 @@ function Flow() {
   const dragDepth = useRef(0);
   const [dragOver, setDragOver] = useState(false);
 
-  // Drag-and-drop from Finder / OS: images → image_upload, PDF/text → file_import.
+  // Drag-and-drop from Finder / OS: images → image_upload, videos → video_upload,
+  // PDF/text → file_import.
   const onCanvasDragOver = useCallback((e: React.DragEvent) => {
     if (e.dataTransfer.types.includes("Files")) {
       e.preventDefault();
@@ -121,9 +123,12 @@ function Flow() {
         const pos = { x: base.x + i * 32, y: base.y + i * 32 };
         const isImage = f.type.startsWith("image/");
         const ext = (f.name.split(".").pop() || "").toLowerCase();
+        const isVideo =
+          f.type.startsWith("video/") || /^(mp4|webm|mov|m4v|mkv)$/.test(ext);
         const isDoc =
-          !isImage && /^(pdf|txt|md|markdown|csv|json|html|htm|log)$/.test(ext);
-        if (!isImage && !isDoc) continue;
+          !isImage && !isVideo &&
+          /^(pdf|txt|md|markdown|csv|json|html|htm|log)$/.test(ext);
+        if (!isImage && !isVideo && !isDoc) continue;
         try {
           const dataUrl: string = await new Promise((res, rej) => {
             const r = new FileReader();
@@ -132,10 +137,11 @@ function Flow() {
             r.readAsDataURL(f);
           });
           const node = await api.addNode({
-            type: isImage ? "image_upload" : "file_import",
+            type: isImage ? "image_upload" : isVideo ? "video_upload" : "file_import",
             position: pos,
           });
           if (isImage) await api.uploadFile(node.id, dataUrl);
+          else if (isVideo) await api.uploadVideoFile(node.id, dataUrl);
           else await api.importFile(node.id, dataUrl, f.name);
         } catch (err) {
           alert(`drop failed: ${(err as Error).message}`);

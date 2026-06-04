@@ -32,6 +32,7 @@ export function CanvasNode({ data, selected }: NodeProps) {
   const spec = models.find((m) => m.id === node.data.model);
 
   const isUpload = node.type === "image_upload";
+  const isVideoUpload = node.type === "video_upload";
   const isFileImport = node.type === "file_import";
   const isConcat = node.type === "video_concat";
   const isNote = node.type === "note";
@@ -43,7 +44,7 @@ export function CanvasNode({ data, selected }: NodeProps) {
     node.type === "image_gen" || node.type === "image_edit" || node.type === "video_gen";
   const hasModel = usable.length > 0;
   const hasParams = !!spec && spec.paramSchema.length > 0;
-  const hasRun = !isUpload && !isFileImport && !isText && !isFrame;
+  const hasRun = !isUpload && !isVideoUpload && !isFileImport && !isText && !isFrame;
 
   const [prompt, setPrompt] = useState(node.data.prompt);
   const focused = useRef(false);
@@ -87,7 +88,7 @@ export function CanvasNode({ data, selected }: NodeProps) {
       setBusy(false);
     }
   }
-  function pick(kind: "image" | "doc") {
+  function pick(kind: "image" | "video" | "doc") {
     return (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
@@ -96,6 +97,7 @@ export function CanvasNode({ data, selected }: NodeProps) {
       reader.onload = async () => {
         try {
           if (kind === "image") await api.uploadFile(node.id, String(reader.result));
+          else if (kind === "video") await api.uploadVideoFile(node.id, String(reader.result));
           else await api.importFile(node.id, String(reader.result), file.name);
         } catch (err) {
           alert((err as Error).message);
@@ -169,6 +171,7 @@ export function CanvasNode({ data, selected }: NodeProps) {
   const placeholder = isConcat
     ? "clip_in に動画を複数接続 → Run で連結"
     : isUpload ? "下のボタンから画像を選択"
+    : isVideoUpload ? "ドラッグ&ドロップ、または下のボタンから動画を選択"
     : isFileImport ? "下のボタンからファイルを取込"
     : "Run で生成";
 
@@ -306,6 +309,12 @@ export function CanvasNode({ data, selected }: NodeProps) {
             <label className="cn-ob-btn">
               {busy ? "…" : "画像"}
               <input type="file" accept="image/*" onChange={pick("image")} hidden />
+            </label>
+          )}
+          {isVideoUpload && (
+            <label className="cn-ob-btn">
+              {busy ? "…" : "動画"}
+              <input type="file" accept="video/*" onChange={pick("video")} hidden />
             </label>
           )}
           {isFileImport && (
