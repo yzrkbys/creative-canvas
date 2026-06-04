@@ -7,6 +7,7 @@ export const NODE_LABELS: Record<NodeType, string> = {
   image_edit: "画像編集",
   video_gen: "動画生成",
   image_upload: "画像アップロード",
+  video_upload: "動画アップロード",
   video_upscale: "動画アップスケール",
   video_concat: "動画連結",
   frame_extract: "フレーム抽出",

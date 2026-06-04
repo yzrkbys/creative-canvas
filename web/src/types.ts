@@ -4,6 +4,7 @@ export type NodeType =
   | "image_edit"
   | "video_gen"
   | "image_upload"
+  | "video_upload"
   | "video_upscale"
   | "video_concat"
   | "frame_extract"

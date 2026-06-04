@@ -68,6 +68,8 @@ export const api = {
     req<RunResult>("POST", `${P()}/nodes/${id}/run`, { confirm: !!confirm }),
   uploadFile: (id: string, dataUrl: string) =>
     req("POST", `${P()}/nodes/${id}/upload-file`, { dataUrl }),
+  uploadVideoFile: (id: string, dataUrl: string) =>
+    req("POST", `${P()}/nodes/${id}/upload-video`, { dataUrl }),
   importFile: (id: string, dataUrl: string, filename: string) =>
     req("POST", `${P()}/nodes/${id}/import-file`, { dataUrl, filename }),
 };

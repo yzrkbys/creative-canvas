@@ -35,6 +35,10 @@ export const PORTS: Record<NodeType, PortDef> = {
     inputs: [],
     output: { port: "image_out", kind: "image" },
   },
+  video_upload: {
+    inputs: [],
+    output: { port: "video_out", kind: "video" },
+  },
   video_upscale: {
     inputs: [{ port: "video_in", kind: "video", required: true }],
     output: { port: "video_out", kind: "video" },
