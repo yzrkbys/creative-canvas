@@ -146,7 +146,16 @@ function buildInput(
 ): Record<string, unknown> {
   const { prompt, params, inputs } = args;
   const imageUrls = inputs.map((i) => i.url);
-  const input: Record<string, unknown> = { prompt, ...params };
+  // Forward ONLY params declared in this model's own schema — never blind-spread.
+  // Two sources of junk would otherwise reach fal: switching a node's model keeps
+  // the previous model's params (updateNode in canvas.ts merges defaults under the
+  // existing params rather than pruning), and the web UI persists an internal
+  // `aspect` float in params (the aspect-lock value). fal currently ignores unknown
+  // fields so this never broke, but a stricter validator would 422 on them — and it
+  // brings fal in line with the kie adapter, which builds inputs by named field.
+  const allowed = new Set((getModel(modelId)?.paramSchema ?? []).map((p) => p.key));
+  const input: Record<string, unknown> = { prompt };
+  for (const [k, v] of Object.entries(params)) if (allowed.has(k)) input[k] = v;
 
   if (modelId === "fal/gpt-image-2") {
     if (params.n != null) input.num_images = params.n;
