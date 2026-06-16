@@ -4,6 +4,7 @@ import cors from "cors";
 import type { Canvas } from "./canvas.js";
 import type { ProjectManager } from "./projects.js";
 import { projectAssetsDir } from "./paths.js";
+import { streamToAssets } from "./assets.js";
 import { isMockMode } from "./providers/index.js";
 import { MODELS } from "./registry.js";
 
@@ -23,7 +24,8 @@ function h(fn: (req: Request, res: Response) => unknown) {
 export function createHttpApp(projects: ProjectManager) {
   const app = express();
   app.use(cors());
-  app.use(express.json({ limit: "50mb" }));
+  // Image/doc data: URLs (base64) ride the JSON body; videos stream raw instead.
+  app.use(express.json({ limit: "100mb" }));
 
   // Resolve the project's Canvas, then run the handler.
   const hc =
@@ -91,6 +93,16 @@ export function createHttpApp(projects: ProjectManager) {
   app.post("/api/projects/:pid/nodes/:id/upload-video", hc((c, req) =>
     c.uploadVideoToNode(req.params.id, req.body.dataUrl),
   ));
+  // Large videos: stream the raw request body straight to disk. Avoids base64
+  // inflation (+33%) and the JSON body-size limit. Content-type is non-JSON, so
+  // express.json passes the request through untouched.
+  app.post("/api/projects/:pid/nodes/:id/upload-video-raw", hc(async (c, req) => {
+    const filename = decodeURIComponent(req.header("x-filename") ?? "");
+    const raw = (filename.split(".").pop() || "mp4").toLowerCase();
+    const ext = /^[a-z0-9]{1,5}$/.test(raw) ? raw : "mp4";
+    const { localUrl } = await streamToAssets(req, ext, req.params.pid);
+    return c.attachVideoToNode(req.params.id, localUrl);
+  }));
   app.post("/api/projects/:pid/nodes/:id/import-file", hc((c, req) =>
     c.importFileToNode(req.params.id, req.body.dataUrl, req.body.filename),
   ));

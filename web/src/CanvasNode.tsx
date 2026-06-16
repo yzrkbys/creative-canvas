@@ -93,11 +93,18 @@ export function CanvasNode({ data, selected }: NodeProps) {
       const file = e.target.files?.[0];
       if (!file) return;
       setBusy(true);
+      if (kind === "video") {
+        // Stream raw bytes; videos are large and base64 would exceed limits.
+        api
+          .uploadVideoFileRaw(node.id, file)
+          .catch((err) => alert((err as Error).message))
+          .finally(() => setBusy(false));
+        return;
+      }
       const reader = new FileReader();
       reader.onload = async () => {
         try {
           if (kind === "image") await api.uploadFile(node.id, String(reader.result));
-          else if (kind === "video") await api.uploadVideoFile(node.id, String(reader.result));
           else await api.importFile(node.id, String(reader.result), file.name);
         } catch (err) {
           alert((err as Error).message);

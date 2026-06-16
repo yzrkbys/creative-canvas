@@ -130,19 +130,23 @@ function Flow() {
           /^(pdf|txt|md|markdown|csv|json|html|htm|log)$/.test(ext);
         if (!isImage && !isVideo && !isDoc) continue;
         try {
-          const dataUrl: string = await new Promise((res, rej) => {
-            const r = new FileReader();
-            r.onload = () => res(String(r.result));
-            r.onerror = () => rej(r.error);
-            r.readAsDataURL(f);
-          });
           const node = await api.addNode({
             type: isImage ? "image_upload" : isVideo ? "video_upload" : "file_import",
             position: pos,
           });
-          if (isImage) await api.uploadFile(node.id, dataUrl);
-          else if (isVideo) await api.uploadVideoFile(node.id, dataUrl);
-          else await api.importFile(node.id, dataUrl, f.name);
+          if (isVideo) {
+            // Stream raw bytes; videos are large and base64 would exceed limits.
+            await api.uploadVideoFileRaw(node.id, f);
+          } else {
+            const dataUrl: string = await new Promise((res, rej) => {
+              const r = new FileReader();
+              r.onload = () => res(String(r.result));
+              r.onerror = () => rej(r.error);
+              r.readAsDataURL(f);
+            });
+            if (isImage) await api.uploadFile(node.id, dataUrl);
+            else await api.importFile(node.id, dataUrl, f.name);
+          }
         } catch (err) {
           alert(`drop failed: ${(err as Error).message}`);
         }
