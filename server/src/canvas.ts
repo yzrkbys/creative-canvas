@@ -704,8 +704,14 @@ export class Canvas extends EventEmitter {
 
   // Attach a browser-uploaded video (data: URL) to an existing node.
   async uploadVideoToNode(id: string, dataUrl: string): Promise<Output> {
-    const node = this.node(id);
     const { localUrl } = await downloadToAssets(dataUrl, "video", this.projectId);
+    return this.attachVideoToNode(id, localUrl);
+  }
+
+  // Attach a video already saved into the project's assets dir (e.g. a streamed
+  // raw upload) to an existing node.
+  attachVideoToNode(id: string, localUrl: string): Output {
+    const node = this.node(id);
     const output: Output = {
       id: nanoid(),
       kind: "video",

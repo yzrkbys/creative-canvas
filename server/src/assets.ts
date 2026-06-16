@@ -1,5 +1,7 @@
-import { promises as fs } from "node:fs";
+import { createWriteStream, promises as fs } from "node:fs";
 import path from "node:path";
+import type { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { nanoid } from "nanoid";
 import { projectAssetsDir } from "./paths.js";
 import type { OutputKind } from "./types.js";
@@ -49,6 +51,23 @@ export async function downloadToAssets(
   const name = `${nanoid()}.${ext}`;
   await fs.writeFile(path.join(dir, name), buf);
   return { localUrl: `/assets/${projectId}/${name}`, bytes: buf.length };
+}
+
+// Stream a raw request body (binary upload) straight to the project's assets
+// dir without buffering the whole file in memory. Used for large videos that
+// would otherwise blow the JSON body limit when sent as base64 data URLs.
+export async function streamToAssets(
+  stream: Readable,
+  ext: string,
+  projectId: string,
+): Promise<{ localUrl: string; bytes: number }> {
+  const dir = projectAssetsDir(projectId);
+  await fs.mkdir(dir, { recursive: true });
+  const name = `${nanoid()}.${ext.replace(/^\./, "")}`;
+  const full = path.join(dir, name);
+  await pipeline(stream, createWriteStream(full));
+  const { size } = await fs.stat(full);
+  return { localUrl: `/assets/${projectId}/${name}`, bytes: size };
 }
 
 export async function saveBytesToAssets(

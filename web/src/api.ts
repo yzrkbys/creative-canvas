@@ -10,14 +10,42 @@ import type {
   RunResult,
 } from "./types";
 
+// Parse a response body as JSON, but degrade gracefully when the server returns
+// non-JSON (e.g. an HTML error page from the body-size limit or a proxy). Without
+// this, such responses surface as a cryptic `Unexpected token '<'` parse error.
+function parseJsonSafe(text: string, status: number): any {
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    const snippet = text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 120);
+    throw new Error(`HTTP ${status}: ${snippet || "non-JSON response"}`);
+  }
+}
+
 async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, {
     method,
     headers: body ? { "content-type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
   });
-  const text = await res.text();
-  const json = text ? JSON.parse(text) : {};
+  const json = parseJsonSafe(await res.text(), res.status);
+  if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+  return json as T;
+}
+
+// Stream a raw file body to the server (no base64, no JSON). For large media
+// like video that would otherwise inflate +33% and exceed the JSON body limit.
+async function reqRaw<T>(method: string, path: string, file: File): Promise<T> {
+  const res = await fetch(path, {
+    method,
+    headers: {
+      "content-type": file.type || "application/octet-stream",
+      "x-filename": encodeURIComponent(file.name),
+    },
+    body: file,
+  });
+  const json = parseJsonSafe(await res.text(), res.status);
   if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
   return json as T;
 }
@@ -70,6 +98,8 @@ export const api = {
     req("POST", `${P()}/nodes/${id}/upload-file`, { dataUrl }),
   uploadVideoFile: (id: string, dataUrl: string) =>
     req("POST", `${P()}/nodes/${id}/upload-video`, { dataUrl }),
+  uploadVideoFileRaw: (id: string, file: File) =>
+    reqRaw("POST", `${P()}/nodes/${id}/upload-video-raw`, file),
   importFile: (id: string, dataUrl: string, filename: string) =>
     req("POST", `${P()}/nodes/${id}/import-file`, { dataUrl, filename }),
 };
