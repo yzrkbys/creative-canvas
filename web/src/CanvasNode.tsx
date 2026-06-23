@@ -182,7 +182,11 @@ export function CanvasNode({ data, selected }: NodeProps) {
     : isFileImport ? "下のボタンからファイルを取込"
     : "Run で生成";
 
-  const floatBar = selected && (
+  // While a config popover (model / prompt / params) is open, hide the floating
+  // toolbar: its big "ID: …" chip sits above the node (z-index 10) and would cover
+  // the tall model list (z-index 6). The popover takes priority — the user is
+  // picking a model, not reading the asset ID.
+  const floatBar = selected && !pop && (
     <div className="cn-floatbar nodrag">
       <button className="cn-fb cn-fb-id" title={`アセットID: ${node.id}（クリックでコピー）`} onClick={copyId}>
         {copied ? "✓ コピーしました" : `ID: ${node.id}`}
