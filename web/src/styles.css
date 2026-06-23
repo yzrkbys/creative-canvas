@@ -1025,7 +1025,12 @@ video.archive-thumb { object-fit: cover; }
   transform: scale(1.1);
 }
 .archive-meta { flex: 1 1 auto; min-width: 0; }
-.archive-type { font-size: 12px; color: #c9d1d9; }
+.archive-type { font-size: 12px; color: #c9d1d9; display: flex; align-items: center; gap: 6px; }
+.archive-tag {
+  font-size: 9px; font-weight: 600; color: #d2a8ff;
+  background: rgba(163,113,247,0.16); border: 1px solid rgba(163,113,247,0.4);
+  border-radius: 4px; padding: 1px 5px; white-space: nowrap;
+}
 .archive-id { font-family: ui-monospace, Menlo, monospace; font-size: 10px; color: #6e7681; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .archive-label { font-size: 11px; color: #8b949e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .archive-actions { display: flex; flex-direction: column; gap: 4px; flex: 0 0 auto; }
