@@ -509,6 +509,7 @@ export class Canvas extends EventEmitter {
         meta: { provider: "ffmpeg", model: "video_concat" },
         createdAt: new Date().toISOString(),
       };
+      this.archiveSupersededOutput(node);
       node.data.outputs.push(output);
       this.touch();
       this.emitEvent({ type: "node:output", id: node.id, output });
@@ -582,6 +583,7 @@ export class Canvas extends EventEmitter {
         meta: { provider: "ffmpeg", model: "frame_extract" },
         createdAt: new Date().toISOString(),
       };
+      this.archiveSupersededOutput(node);
       node.data.outputs.push(output);
       this.touch();
       this.emitEvent({ type: "node:output", id: node.id, output });
@@ -601,6 +603,36 @@ export class Canvas extends EventEmitter {
     node.error = error;
     this.touch();
     this.emitEvent({ type: "node:status", id: node.id, status, error });
+  }
+
+  // When a media node re-generates, the output it currently shows would otherwise
+  // be buried behind the new one (the UI only renders outputs[last]) — to the user
+  // it just "disappears". Instead, spin that prior output off into its own archived
+  // sibling node so nothing is lost: it shows up in the Archive panel and can be
+  // restored. Call BEFORE recording a run's new output(s). No-op on first
+  // generation (no prior output) or for text outputs.
+  //
+  // `params.archived` is the very flag the web UI uses to move a node into the
+  // Archive, so this works identically for UI- and agent-driven runs (the ops API
+  // stays the single contract — no UI-only path).
+  private archiveSupersededOutput(node: GraphNode): void {
+    const prev = node.data.outputs[node.data.outputs.length - 1];
+    if (!prev || prev.kind === "text") return;
+    const snapshot: GraphNode = {
+      id: nanoid(),
+      type: node.type,
+      position: { x: node.position.x + 36, y: node.position.y + 36 },
+      data: {
+        prompt: node.data.prompt,
+        model: node.data.model,
+        params: { ...node.data.params, archived: true, archivedReason: "superseded" },
+        outputs: [{ ...prev, id: nanoid() }],
+      },
+      status: "succeeded",
+    };
+    this.graph.nodes.push(snapshot);
+    this.touch();
+    this.emitEvent({ type: "node:added", node: snapshot });
   }
 
   private async execute(
@@ -625,6 +657,9 @@ export class Canvas extends EventEmitter {
         this.cancelled.delete(job.id);
         return;
       }
+
+      // Preserve the prior result before this run's output replaces it on screen.
+      if (result.outputs.length > 0) this.archiveSupersededOutput(node);
 
       for (const raw of result.outputs) {
         const { localUrl } = await downloadToAssets(raw.url, raw.kind, this.projectId);

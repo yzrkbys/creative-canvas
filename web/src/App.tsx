@@ -453,6 +453,7 @@ function Flow() {
                 const noteText =
                   (n.type === "note" || n.type === "doc") ? n.data.prompt : null;
                 const label = n.data.prompt?.trim()?.slice(0, 40) || n.type;
+                const superseded = n.data.params?.archivedReason === "superseded";
                 return (
                   <div key={n.id} className="archive-item">
                     {isImage ? (
@@ -477,7 +478,10 @@ function Flow() {
                       <div className="archive-thumb ph">{n.type}</div>
                     )}
                     <div className="archive-meta">
-                      <div className="archive-type">{n.type}</div>
+                      <div className="archive-type">
+                        {n.type}
+                        {superseded && <span className="archive-tag">旧バージョン</span>}
+                      </div>
                       <div className="archive-id" title={n.id}>{n.id}</div>
                       <div className="archive-label">{label}</div>
                     </div>

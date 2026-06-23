@@ -384,6 +384,34 @@ export const MODELS: ModelSpec[] = [
     },
   },
   {
+    id: "kie/seedance-2.0-mini",
+    provider: "kie",
+    path: "bytedance/seedance-2-mini",
+    kind: "video",
+    nodeTypes: ["video_gen"],
+    priceHint: "≈$0.015/s× res (概算・最安ミニ版)",
+    paramSchema: [
+      { key: "mode", label: "Mode", type: "select", options: ["t2v", "i2v", "flf", "r2v"] },
+      { key: "duration", label: "Duration (s)", type: "number", min: 4, max: 15, step: 1 },
+      // mini tier (like fast) tops out at 720p — no 1080p
+      { key: "resolution", label: "Resolution", type: "select", options: ["480p", "720p"] },
+      {
+        key: "aspect_ratio",
+        label: "Aspect",
+        type: "select",
+        options: ["16:9", "9:16", "1:1", "4:3", "3:4", "21:9", "adaptive"],
+      },
+      { key: "generate_audio", label: "Audio", type: "select", options: ["false", "true"] },
+    ],
+    defaults: {
+      mode: "i2v",
+      duration: 5,
+      resolution: "720p",
+      aspect_ratio: "16:9",
+      generate_audio: "false",
+    },
+  },
+  {
     id: "kie/gemini-omni-video",
     provider: "kie",
     path: "gemini-omni-video",
@@ -399,6 +427,35 @@ export const MODELS: ModelSpec[] = [
       { key: "seed", label: "Seed", type: "number", min: 0, max: 2147483647, step: 1 },
     ],
     defaults: { duration: "8", aspect_ratio: "16:9", resolution: "720p" },
+  },
+  {
+    id: "kie/happyhorse-1.1",
+    provider: "kie",
+    // Alibaba HappyHorse 1.1 via KIE's unified jobs API — T2V / I2V / R2V.
+    // ⚠ slug + field names are INFERRED from public docs (KIE's own model page
+    // blocks automated fetch). If a real run 404s (bad slug) or 422s (bad field),
+    // confirm against kie.ai/happyhorse-1-1 → "API" panel and adjust this `path`
+    // + the kie/happyhorse-1.1 branch in providers/kie.ts buildInput. Modeled on
+    // KIE's Seedance (its direct competitor) which uses one unified slug for all
+    // modes. (HappyHorse 1.1 has no first-last-frame mode — first frame only.)
+    path: "happyhorse/1-1",
+    kind: "video",
+    nodeTypes: ["video_gen"],
+    priceHint: "≈$0.10/s× res (概算・T2V/I2V/R2V)",
+    paramSchema: [
+      // t2v=text only / i2v=first frame (image_in) / r2v=reference images (ref_in, 1–9)
+      { key: "mode", label: "Mode", type: "select", options: ["t2v", "i2v", "r2v"] },
+      { key: "duration", label: "Duration (s)", type: "number", min: 3, max: 15, step: 1 },
+      { key: "resolution", label: "Resolution", type: "select", options: ["720p", "1080p"] },
+      {
+        key: "aspect_ratio",
+        label: "Aspect",
+        type: "select",
+        options: ["16:9", "9:16", "1:1", "4:3", "3:4"],
+      },
+      { key: "seed", label: "Seed", type: "number", min: 0, max: 2147483647, step: 1 },
+    ],
+    defaults: { mode: "i2v", duration: 5, resolution: "720p", aspect_ratio: "16:9" },
   },
   {
     id: "kie/kling-3.0",
