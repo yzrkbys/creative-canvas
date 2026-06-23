@@ -217,7 +217,11 @@ function buildInput(
     };
   }
 
-  if (modelId === "kie/seedance-2.0" || modelId === "kie/seedance-2.0-fast") {
+  if (
+    modelId === "kie/seedance-2.0" ||
+    modelId === "kie/seedance-2.0-fast" ||
+    modelId === "kie/seedance-2.0-mini"
+  ) {
     const mode = String(params.mode ?? "i2v");
     const input: Record<string, unknown> = {
       prompt,
@@ -243,6 +247,32 @@ function buildInput(
         throw new Error("r2v mode needs at least one reference (ref_in image or ref_video_in)");
       if (refImgs.length) input.reference_image_urls = refImgs.slice(0, 9);
       if (refVids.length) input.reference_video_urls = refVids.slice(0, 3);
+    }
+    // t2v: prompt only
+    return input;
+  }
+
+  if (modelId === "kie/happyhorse-1.1") {
+    // Alibaba HappyHorse 1.1: T2V / I2V (first frame) / R2V (1–9 reference images).
+    // Field names inferred from public HappyHorse API docs — see registry note.
+    const mode = String(params.mode ?? "i2v");
+    const input: Record<string, unknown> = {
+      prompt,
+      duration: Number(params.duration ?? 5),
+      resolution: params.resolution ?? "720p",
+      aspect_ratio: params.aspect_ratio ?? "16:9",
+    };
+    const seed = params.seed;
+    if (seed !== undefined && seed !== null && seed !== "") input.seed = Number(seed);
+    const first = byPort("image_in")[0];
+    const refs = byPort("ref_in");
+    if (mode === "i2v") {
+      if (!first) throw new Error("i2v mode needs a first-frame image on image_in");
+      input.image_urls = [first];
+    } else if (mode === "r2v") {
+      if (refs.length === 0)
+        throw new Error("r2v mode needs at least one reference image on ref_in");
+      input.reference_image_urls = refs.slice(0, 9);
     }
     // t2v: prompt only
     return input;
@@ -403,18 +433,30 @@ function estimate(model: string, params: Record<string, unknown>): CostEstimate 
     const amount = Number((0.08 * dur * resMul).toFixed(2));
     return { amount, currency: "USD", note: `hailuo-2.3 ${dur}s ${params.resolution ?? "768P"} (概算)` };
   }
-  if (model === "kie/seedance-2.0" || model === "kie/seedance-2.0-fast") {
-    const fast = model.endsWith("-fast");
+  if (
+    model === "kie/seedance-2.0" ||
+    model === "kie/seedance-2.0-fast" ||
+    model === "kie/seedance-2.0-mini"
+  ) {
     const dur = Number(params.duration ?? 5);
     const res = params.resolution ?? "720p";
     const resMul = res === "1080p" ? 1.8 : res === "480p" ? 0.6 : 1;
-    const perSec = fast ? 0.022 : 0.12;
+    // mini is the cheapest tier, fast next, standard the priciest.
+    const perSec = model.endsWith("-mini") ? 0.015 : model.endsWith("-fast") ? 0.022 : 0.12;
     const amount = Number((perSec * dur * resMul).toFixed(3));
     return {
       amount,
       currency: "USD",
-      note: `${fast ? "seedance-2.0-fast" : "seedance-2.0"} ${dur}s ${res} ${params.mode ?? ""} (概算)`,
+      note: `${model.replace("kie/", "")} ${dur}s ${res} ${params.mode ?? ""} (概算)`,
     };
+  }
+  if (model === "kie/happyhorse-1.1") {
+    // Advisory only; actual cost returns as creditsConsumed after the run.
+    const dur = Number(params.duration ?? 5);
+    const res = params.resolution ?? "720p";
+    const resMul = res === "1080p" ? 1.6 : 1;
+    const amount = Number((0.1 * dur * resMul).toFixed(2));
+    return { amount, currency: "USD", note: `happyhorse-1.1 ${dur}s ${res} ${params.mode ?? ""} (概算)` };
   }
   if (model === "kie/gemini-omni-video") {
     // NOTE: exact KIE pricing not published here; actual cost is reported as
