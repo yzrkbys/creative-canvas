@@ -7,6 +7,7 @@ export type NodeType =
   | "video_gen"
   | "image_upload"
   | "video_upload"
+  | "audio_upload"
   | "video_upscale"
   | "video_concat"
   | "frame_extract"
@@ -23,17 +24,18 @@ export type NodeStatus =
   | "succeeded"
   | "failed";
 
-export type PortOut = "image_out" | "video_out" | "text_out";
+export type PortOut = "image_out" | "video_out" | "audio_out" | "text_out";
 export type PortIn =
   | "image_in"
   | "ref_in"
   | "last_frame_in"
   | "video_in"
   | "ref_video_in"
+  | "ref_audio_in"
   | "clip_in"
   | "text_in";
 
-export type OutputKind = "image" | "video" | "text";
+export type OutputKind = "image" | "video" | "audio" | "text";
 
 export interface OutputMeta {
   width?: number;

@@ -46,6 +46,7 @@ const nodeTypes: NodeTypes = {
   video_gen: CanvasNode,
   image_upload: CanvasNode,
   video_upload: CanvasNode,
+  audio_upload: CanvasNode,
   video_upscale: CanvasNode,
   video_concat: CanvasNode,
   frame_extract: CanvasNode,
@@ -62,6 +63,7 @@ function defaultSize(t: NodeType): { w: number; h: number } {
   if (t === "note") return { w: 260, h: 210 };
   if (t === "doc") return { w: 280, h: 300 };
   if (t === "web_clip" || t === "file_import") return { w: 260, h: 230 };
+  if (t === "audio_upload") return { w: 280, h: 150 }; // audio player is short
   if (t === "video_gen" || t === "video_upscale" || t === "video_concat" || t === "video_upload")
     return { w: 300, h: 280 };
   if (t === "frame_extract") return { w: 300, h: 340 };
@@ -70,7 +72,7 @@ function defaultSize(t: NodeType): { w: number; h: number } {
 
 // Grouped node palette for the "+ Add node" menu (scales as types grow).
 const NODE_GROUPS: { label: string; types: NodeType[] }[] = [
-  { label: "メディア", types: ["image_gen", "image_edit", "video_gen", "image_upload", "video_upload", "video_upscale", "video_concat", "frame_extract"] },
+  { label: "メディア", types: ["image_gen", "image_edit", "video_gen", "image_upload", "video_upload", "audio_upload", "video_upscale", "video_concat", "frame_extract"] },
   { label: "テキスト / 情報", types: ["note", "doc", "web_clip", "file_import"] },
   { label: "レイアウト", types: ["frame"] },
 ];
@@ -93,7 +95,7 @@ function Flow() {
   const [dragOver, setDragOver] = useState(false);
 
   // Drag-and-drop from Finder / OS: images → image_upload, videos → video_upload,
-  // PDF/text → file_import.
+  // audio → audio_upload, PDF/text → file_import.
   const onCanvasDragOver = useCallback((e: React.DragEvent) => {
     if (e.dataTransfer.types.includes("Files")) {
       e.preventDefault();
@@ -125,18 +127,30 @@ function Flow() {
         const ext = (f.name.split(".").pop() || "").toLowerCase();
         const isVideo =
           f.type.startsWith("video/") || /^(mp4|webm|mov|m4v|mkv)$/.test(ext);
+        const isAudio =
+          !isVideo &&
+          (f.type.startsWith("audio/") || /^(mp3|wav|ogg|oga|m4a|aac|flac|opus|weba)$/.test(ext));
         const isDoc =
-          !isImage && !isVideo &&
+          !isImage && !isVideo && !isAudio &&
           /^(pdf|txt|md|markdown|csv|json|html|htm|log)$/.test(ext);
-        if (!isImage && !isVideo && !isDoc) continue;
+        if (!isImage && !isVideo && !isAudio && !isDoc) continue;
         try {
           const node = await api.addNode({
-            type: isImage ? "image_upload" : isVideo ? "video_upload" : "file_import",
+            type: isImage
+              ? "image_upload"
+              : isVideo
+                ? "video_upload"
+                : isAudio
+                  ? "audio_upload"
+                  : "file_import",
             position: pos,
           });
           if (isVideo) {
             // Stream raw bytes; videos are large and base64 would exceed limits.
             await api.uploadVideoFileRaw(node.id, f);
+          } else if (isAudio) {
+            // Stream raw bytes too; uncompressed audio can also be large.
+            await api.uploadAudioFileRaw(node.id, f);
           } else {
             const dataUrl: string = await new Promise((res, rej) => {
               const r = new FileReader();

@@ -114,7 +114,8 @@ server.tool(
 
 server.tool(
   "canvas_add_node",
-  "Add a node. type=image_gen|image_edit|video_gen|image_upload|video_upscale|video_concat|frame_extract|note|doc|web_clip|frame. " +
+  "Add a node. type=image_gen|image_edit|video_gen|image_upload|video_upload|audio_upload|video_upscale|video_concat|frame_extract|note|doc|web_clip|frame. " +
+    "image_upload/video_upload/audio_upload = a user-supplied media source (attach bytes via the upload tools/UI). " +
     "note/doc = editable text (set content with canvas_set_prompt; doc is long-form). " +
     "web_clip = fetch a URL to text (set params.url, then canvas_run). " +
     "video_concat = join clips on clip_in (ordered left->right by node x). " +
@@ -126,6 +127,8 @@ server.tool(
       "image_edit",
       "video_gen",
       "image_upload",
+      "video_upload",
+      "audio_upload",
       "video_upscale",
       "video_concat",
       "frame_extract",
@@ -209,10 +212,11 @@ server.tool(
   "canvas_connect",
   "Connect source.sourceHandle -> target.targetHandle. Validates kind compatibility. " +
     "Ports: image_in(first frame), last_frame_in, ref_in(images, multi), " +
-    "video_in(upscale), ref_video_in(videos, multi).",
+    "video_in(upscale), ref_video_in(videos, multi), " +
+    "ref_audio_in(audio refs, multi — Seedance 2.0 video_gen, from audio_upload's audio_out).",
   {
     source: z.string(),
-    sourceHandle: z.enum(["image_out", "video_out", "text_out"]),
+    sourceHandle: z.enum(["image_out", "video_out", "audio_out", "text_out"]),
     target: z.string(),
     targetHandle: z.enum([
       "image_in",
@@ -220,6 +224,7 @@ server.tool(
       "last_frame_in",
       "video_in",
       "ref_video_in",
+      "ref_audio_in",
       "clip_in",
       "text_in",
     ]),
@@ -305,6 +310,19 @@ server.tool(
   async ({ path }) => {
     try {
       return ok(await sc("POST", "/upload", { path }));
+    } catch (e) {
+      return fail(e);
+    }
+  },
+);
+
+server.tool(
+  "canvas_upload_audio",
+  "Upload a local audio file path (mp3 / wav / m4a / ogg / flac …); creates an audio_upload node holding it in the active project (audio_out).",
+  { path: z.string() },
+  async ({ path }) => {
+    try {
+      return ok(await sc("POST", "/upload-audio", { path }));
     } catch (e) {
       return fail(e);
     }

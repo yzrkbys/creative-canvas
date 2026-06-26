@@ -665,6 +665,7 @@ textarea.cnode-doc {
 .cn-image_gen { border-color: #a855f7; }
 .cn-image_edit { border-color: #ec4899; }
 .cn-image_upload { border-color: #8b5cf6; }
+.cn-audio_upload { border-color: #eab308; }
 .cn-video_gen { border-color: #0ea5e9; }
 .cn-video_upscale { border-color: #f59e0b; }
 .cn-video_concat { border-color: #6366f1; }
@@ -697,6 +698,10 @@ textarea.cnode-doc {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  display: block;
+}
+.cn-audio {
+  width: 92%;
   display: block;
 }
 .cn-text {

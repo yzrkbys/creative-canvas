@@ -372,7 +372,9 @@ export const MODELS: ModelSpec[] = [
         key: "mode",
         label: "Mode",
         type: "select",
-        // t2v=text only / i2v=first frame / flf=first+last / r2v=references
+        // t2v=text only / i2v=first frame / flf=first+last / r2v=references.
+        // Audio references (ref_audio_in → reference_audio_urls) are accepted in
+        // ANY mode — wire an audio_upload's audio_out to the node's ref_audio_in.
         options: ["t2v", "i2v", "flf", "r2v"],
       },
       { key: "duration", label: "Duration (s)", type: "number", min: 4, max: 15, step: 1 },

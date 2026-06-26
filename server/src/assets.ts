@@ -6,10 +6,22 @@ import { nanoid } from "nanoid";
 import { projectAssetsDir } from "./paths.js";
 import type { OutputKind } from "./types.js";
 
-const EXT: Record<OutputKind, string> = { image: "png", video: "mp4", text: "txt" };
+const EXT: Record<OutputKind, string> = { image: "png", video: "mp4", audio: "mp3", text: "txt" };
 
 function extFromContentType(ct: string | null, kind: OutputKind): string {
   if (!ct) return EXT[kind];
+  // audio content types first — "audio/mp4"/"audio/webm" must not fall into the
+  // video mp4/webm branches below.
+  if (kind === "audio") {
+    if (ct.includes("mpeg") || ct.includes("mp3")) return "mp3";
+    if (ct.includes("wav")) return "wav";
+    if (ct.includes("ogg")) return "ogg";
+    if (ct.includes("flac")) return "flac";
+    if (ct.includes("aac")) return "aac";
+    if (ct.includes("mp4") || ct.includes("m4a")) return "m4a";
+    if (ct.includes("webm")) return "webm";
+    return EXT[kind];
+  }
   if (ct.includes("svg")) return "svg";
   if (ct.includes("jpeg")) return "jpg";
   if (ct.includes("png")) return "png";

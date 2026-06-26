@@ -17,6 +17,7 @@ const STATUS_COLOR: Record<string, string> = {
 const KIND_COLOR: Record<OutputKind, string> = {
   image: "#a855f7",
   video: "#0ea5e9",
+  audio: "#eab308",
   text: "#22c55e",
 };
 const isVideoUrl = (url: string) => /\.(mp4|webm|mov)$/i.test(url);
@@ -33,6 +34,7 @@ export function CanvasNode({ data, selected }: NodeProps) {
 
   const isUpload = node.type === "image_upload";
   const isVideoUpload = node.type === "video_upload";
+  const isAudioUpload = node.type === "audio_upload";
   const isFileImport = node.type === "file_import";
   const isConcat = node.type === "video_concat";
   const isNote = node.type === "note";
@@ -44,7 +46,7 @@ export function CanvasNode({ data, selected }: NodeProps) {
     node.type === "image_gen" || node.type === "image_edit" || node.type === "video_gen";
   const hasModel = usable.length > 0;
   const hasParams = !!spec && spec.paramSchema.length > 0;
-  const hasRun = !isUpload && !isVideoUpload && !isFileImport && !isText && !isFrame;
+  const hasRun = !isUpload && !isVideoUpload && !isAudioUpload && !isFileImport && !isText && !isFrame;
 
   const [prompt, setPrompt] = useState(node.data.prompt);
   const focused = useRef(false);
@@ -57,7 +59,8 @@ export function CanvasNode({ data, selected }: NodeProps) {
   const [copied, setCopied] = useState(false);
 
   const out = node.data.outputs[node.data.outputs.length - 1];
-  const mediaOut = out && out.kind !== "text" ? out : undefined;
+  // image/video can be expanded in a lightbox; audio/text cannot.
+  const mediaOut = out && (out.kind === "image" || out.kind === "video") ? out : undefined;
   // real generation state comes from the node status (live via WS), not the
   // brief local HTTP "busy" flag.
   const generating = node.status === "running" || node.status === "queued";
@@ -88,15 +91,16 @@ export function CanvasNode({ data, selected }: NodeProps) {
       setBusy(false);
     }
   }
-  function pick(kind: "image" | "video" | "doc") {
+  function pick(kind: "image" | "video" | "audio" | "doc") {
     return (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
       setBusy(true);
-      if (kind === "video") {
-        // Stream raw bytes; videos are large and base64 would exceed limits.
-        api
-          .uploadVideoFileRaw(node.id, file)
+      if (kind === "video" || kind === "audio") {
+        // Stream raw bytes; media files are large and base64 would exceed limits.
+        const upload =
+          kind === "video" ? api.uploadVideoFileRaw : api.uploadAudioFileRaw;
+        upload(node.id, file)
           .catch((err) => alert((err as Error).message))
           .finally(() => setBusy(false));
         return;
@@ -179,6 +183,7 @@ export function CanvasNode({ data, selected }: NodeProps) {
     ? "clip_in に動画を複数接続 → Run で連結"
     : isUpload ? "下のボタンから画像を選択"
     : isVideoUpload ? "ドラッグ&ドロップ、または下のボタンから動画を選択"
+    : isAudioUpload ? "ドラッグ&ドロップ、または下のボタンからオーディオを選択"
     : isFileImport ? "下のボタンからファイルを取込"
     : "Run で生成";
 
@@ -285,6 +290,8 @@ export function CanvasNode({ data, selected }: NodeProps) {
           {out ? (
             out.kind === "text" ? (
               <pre className="cn-text">{out.text}</pre>
+            ) : out.kind === "audio" ? (
+              <audio src={out.url} controls className="cn-audio" />
             ) : isVideoUrl(out.url) ? (
               <video src={out.url} controls loop muted className="cn-media"
                 onLoadedMetadata={(e) => onMediaLoad(e.currentTarget.videoWidth, e.currentTarget.videoHeight)} />
@@ -326,6 +333,12 @@ export function CanvasNode({ data, selected }: NodeProps) {
             <label className="cn-ob-btn">
               {busy ? "…" : "動画"}
               <input type="file" accept="video/*" onChange={pick("video")} hidden />
+            </label>
+          )}
+          {isAudioUpload && (
+            <label className="cn-ob-btn">
+              {busy ? "…" : "音声"}
+              <input type="file" accept="audio/*" onChange={pick("audio")} hidden />
             </label>
           )}
           {isFileImport && (
