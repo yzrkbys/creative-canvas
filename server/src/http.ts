@@ -87,6 +87,7 @@ export function createHttpApp(projects: ProjectManager) {
 
   // ---- assets ----
   app.post("/api/projects/:pid/upload", hc((c, req) => c.uploadImage(req.body.path)));
+  app.post("/api/projects/:pid/upload-audio", hc((c, req) => c.uploadAudio(req.body.path)));
   app.post("/api/projects/:pid/nodes/:id/upload-file", hc((c, req) =>
     c.uploadToNode(req.params.id, req.body.dataUrl),
   ));
@@ -102,6 +103,18 @@ export function createHttpApp(projects: ProjectManager) {
     const ext = /^[a-z0-9]{1,5}$/.test(raw) ? raw : "mp4";
     const { localUrl } = await streamToAssets(req, ext, req.params.pid);
     return c.attachVideoToNode(req.params.id, localUrl);
+  }));
+  app.post("/api/projects/:pid/nodes/:id/upload-audio", hc((c, req) =>
+    c.uploadAudioToNode(req.params.id, req.body.dataUrl),
+  ));
+  // Large audio (long WAV/uncompressed): stream raw bytes straight to disk to
+  // avoid base64 inflation and the JSON body-size limit, like video.
+  app.post("/api/projects/:pid/nodes/:id/upload-audio-raw", hc(async (c, req) => {
+    const filename = decodeURIComponent(req.header("x-filename") ?? "");
+    const raw = (filename.split(".").pop() || "mp3").toLowerCase();
+    const ext = /^[a-z0-9]{1,5}$/.test(raw) ? raw : "mp3";
+    const { localUrl } = await streamToAssets(req, ext, req.params.pid);
+    return c.attachAudioToNode(req.params.id, localUrl);
   }));
   app.post("/api/projects/:pid/nodes/:id/import-file", hc((c, req) =>
     c.importFileToNode(req.params.id, req.body.dataUrl, req.body.filename),

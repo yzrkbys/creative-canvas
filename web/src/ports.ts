@@ -27,6 +27,7 @@ export const PORTS: Record<NodeType, PortDef> = {
       { port: "last_frame_in", kind: "image", required: false },
       { port: "ref_in", kind: "image", required: false },
       { port: "ref_video_in", kind: "video", required: false },
+      { port: "ref_audio_in", kind: "audio", required: false },
       { port: "text_in", kind: "text", required: false },
     ],
     output: { port: "video_out", kind: "video" },
@@ -38,6 +39,10 @@ export const PORTS: Record<NodeType, PortDef> = {
   video_upload: {
     inputs: [],
     output: { port: "video_out", kind: "video" },
+  },
+  audio_upload: {
+    inputs: [],
+    output: { port: "audio_out", kind: "audio" },
   },
   video_upscale: {
     inputs: [{ port: "video_in", kind: "video", required: true }],
@@ -75,6 +80,7 @@ export const PORTS: Record<NodeType, PortDef> = {
 export const MULTI_INPUT_PORTS = new Set<PortIn>([
   "ref_in",
   "ref_video_in",
+  "ref_audio_in",
   "clip_in",
   "text_in",
 ]);

@@ -36,6 +36,7 @@ export const PORTS: Record<NodeType, PortDef> = {
       { port: "last_frame_in", kind: "image", required: false }, // last frame (flf)
       { port: "ref_in", kind: "image", required: false }, // reference images (r2v)
       { port: "ref_video_in", kind: "video", required: false }, // reference videos (r2v)
+      { port: "ref_audio_in", kind: "audio", required: false }, // reference audio (Seedance 2.0 r2v)
       { port: "text_in", kind: "text", required: false }, // prompt from upstream text
     ],
     output: { port: "video_out", kind: "video" },
@@ -48,6 +49,11 @@ export const PORTS: Record<NodeType, PortDef> = {
   video_upload: {
     inputs: [],
     output: { port: "video_out", kind: "video" },
+  },
+  // a user-supplied audio source (drag-dropped or picked) — exposes audio_out
+  audio_upload: {
+    inputs: [],
+    output: { port: "audio_out", kind: "audio" },
   },
   video_upscale: {
     inputs: [{ port: "video_in", kind: "video", required: true }],
@@ -91,6 +97,7 @@ export const PORTS: Record<NodeType, PortDef> = {
 export const MULTI_INPUT_PORTS = new Set<PortIn>([
   "ref_in",
   "ref_video_in",
+  "ref_audio_in",
   "clip_in",
   "text_in",
 ]);

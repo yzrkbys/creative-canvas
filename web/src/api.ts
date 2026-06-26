@@ -100,6 +100,10 @@ export const api = {
     req("POST", `${P()}/nodes/${id}/upload-video`, { dataUrl }),
   uploadVideoFileRaw: (id: string, file: File) =>
     reqRaw("POST", `${P()}/nodes/${id}/upload-video-raw`, file),
+  uploadAudioFile: (id: string, dataUrl: string) =>
+    req("POST", `${P()}/nodes/${id}/upload-audio`, { dataUrl }),
+  uploadAudioFileRaw: (id: string, file: File) =>
+    reqRaw("POST", `${P()}/nodes/${id}/upload-audio-raw`, file),
   importFile: (id: string, dataUrl: string, filename: string) =>
     req("POST", `${P()}/nodes/${id}/import-file`, { dataUrl, filename }),
 };

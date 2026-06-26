@@ -57,6 +57,12 @@ const MIME: Record<string, string> = {
   svg: "image/svg+xml",
   mp4: "video/mp4",
   webm: "video/webm",
+  mp3: "audio/mpeg",
+  wav: "audio/wav",
+  ogg: "audio/ogg",
+  m4a: "audio/mp4",
+  aac: "audio/aac",
+  flac: "audio/flac",
 };
 
 // KIE must fetch inputs from a reachable URL. Local /assets/* files are uploaded
@@ -87,7 +93,9 @@ function buildInput(
   params: Record<string, unknown>,
   inputs: ResolvedInput[],
 ): Record<string, unknown> {
-  const urls = inputs.map((i) => i.url);
+  // generic url list excludes audio: audio is only ever consumed explicitly via
+  // byPort("ref_audio_in"), never as an image/video fallback (would 422).
+  const urls = inputs.filter((i) => i.kind !== "audio").map((i) => i.url);
   const byPort = (p: string) => inputs.filter((i) => i.port === p).map((i) => i.url);
   const bool = (v: unknown) => v === true || v === "true";
 
@@ -234,6 +242,9 @@ function buildInput(
     const last = byPort("last_frame_in")[0];
     const refImgs = byPort("ref_in");
     const refVids = byPort("ref_video_in");
+    // Seedance 2.0 reference audio (verified KIE field `reference_audio_urls`):
+    // max 3, wav/mp3, ≤15MB each, total ≤15s. Part of "Multimodal Reference-to-Video".
+    const refAudios = byPort("ref_audio_in");
     if (mode === "i2v") {
       if (!first) throw new Error("i2v mode needs a first-frame image on image_in");
       input.first_frame_url = first;
@@ -243,12 +254,18 @@ function buildInput(
       input.first_frame_url = first;
       input.last_frame_url = last;
     } else if (mode === "r2v") {
-      if (refImgs.length === 0 && refVids.length === 0)
-        throw new Error("r2v mode needs at least one reference (ref_in image or ref_video_in)");
+      if (refImgs.length === 0 && refVids.length === 0 && refAudios.length === 0)
+        throw new Error(
+          "r2v mode needs at least one reference (ref_in image, ref_video_in, or ref_audio_in)",
+        );
       if (refImgs.length) input.reference_image_urls = refImgs.slice(0, 9);
       if (refVids.length) input.reference_video_urls = refVids.slice(0, 3);
     }
-    // t2v: prompt only
+    // Audio references guide beat/rhythm/motion and are accepted alongside any
+    // mode — KIE's seedance-2 input carries no `mode` field; it infers the task
+    // from which reference_* fields are present, so audio works with t2v/i2v/flf/r2v.
+    if (refAudios.length) input.reference_audio_urls = refAudios.slice(0, 3);
+    // t2v: prompt only (plus any audio refs above)
     return input;
   }
 

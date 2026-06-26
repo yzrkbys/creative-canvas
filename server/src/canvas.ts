@@ -761,6 +761,54 @@ export class Canvas extends EventEmitter {
     return output;
   }
 
+  // Attach a browser-uploaded audio clip (data: URL) to an existing node.
+  async uploadAudioToNode(id: string, dataUrl: string): Promise<Output> {
+    const { localUrl } = await downloadToAssets(dataUrl, "audio", this.projectId);
+    return this.attachAudioToNode(id, localUrl);
+  }
+
+  // Attach an audio clip already saved into the project's assets dir (e.g. a
+  // streamed raw upload) to an existing node.
+  attachAudioToNode(id: string, localUrl: string): Output {
+    const node = this.node(id);
+    const output: Output = {
+      id: nanoid(),
+      kind: "audio",
+      url: localUrl,
+      meta: { provider: "upload", model: "upload" },
+      createdAt: new Date().toISOString(),
+    };
+    node.data.outputs.push(output);
+    this.touch();
+    this.emitEvent({ type: "node:output", id: node.id, output });
+    this.setStatus(node, "succeeded");
+    return output;
+  }
+
+  // Upload a local audio file by path (used by the MCP agent): creates an
+  // audio_upload node holding it.
+  async uploadAudio(filePath: string): Promise<{ node: GraphNode; output: Output }> {
+    const abs = path.resolve(filePath);
+    const bytes = await fs.readFile(abs);
+    const ext = (path.extname(abs).slice(1) || "mp3").toLowerCase();
+    const localUrl = await saveBytesToAssets(bytes, ext, this.projectId);
+    const node = this.addNode({
+      type: "audio_upload",
+      data: { prompt: `(uploaded: ${path.basename(abs)})` },
+    });
+    const output: Output = {
+      id: nanoid(),
+      kind: "audio",
+      url: localUrl,
+      meta: { provider: "upload", model: "upload" },
+      createdAt: new Date().toISOString(),
+    };
+    node.data.outputs.push(output);
+    this.setStatus(node, "succeeded");
+    this.emitEvent({ type: "node:output", id: node.id, output });
+    return { node, output };
+  }
+
   // Import a browser-uploaded document (data: URL) into a node as text.
   async importFileToNode(id: string, dataUrl: string, filename: string): Promise<Output> {
     const node = this.node(id);

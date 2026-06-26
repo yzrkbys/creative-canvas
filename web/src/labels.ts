@@ -8,6 +8,7 @@ export const NODE_LABELS: Record<NodeType, string> = {
   video_gen: "動画生成",
   image_upload: "画像アップロード",
   video_upload: "動画アップロード",
+  audio_upload: "オーディオアップロード",
   video_upscale: "動画アップスケール",
   video_concat: "動画連結",
   frame_extract: "フレーム抽出",
@@ -30,10 +31,12 @@ export const PORT_LABELS: Record<string, string> = {
   last_frame_in: "末尾フレーム",
   video_in: "入力動画",
   ref_video_in: "参照動画",
+  ref_audio_in: "参照オーディオ",
   clip_in: "クリップ",
   text_in: "テキスト入力",
   image_out: "画像出力",
   video_out: "動画出力",
+  audio_out: "オーディオ出力",
   text_out: "テキスト出力",
 };
 
