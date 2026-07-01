@@ -277,6 +277,40 @@ export const MODELS: ModelSpec[] = [
     defaults: { output_format: "png", num_images: 1 },
   },
   {
+    id: "fal/boogu-image-edit",
+    provider: "fal",
+    path: "fal-ai/boogu-image/edit",
+    kind: "image",
+    // i2i photoreal edit (commercial-use OK; added 2026-06-19 for realistic-skin work).
+    // Unlike NB-pro (plays safe, near-copies the input) and GPT-image-2-edit (recrops/
+    // recomposes), boogu exposes explicit knobs to dial the realism<->preservation balance:
+    //   guidance_scale       prompt adherence (fal default 4)
+    //   image_guidance_scale input preservation (fal default 1 — raise to lock identity/composition)
+    //   num_inference_steps  denoising steps (fal default 30)
+    // SINGLE input image (image_url, singular). image_size omitted on purpose so the edit
+    // keeps the input aspect (avoids GPT-style recrop); add it back if a res uplift is wanted.
+    // $0.04 / megapixel. Output dims track the input (~input MP), so no upscaler needed.
+    //
+    // ★INPUT CAP: max input area is 4,194,304 px² (2048×2048 = 4MP). Larger inputs 422 with
+    //   image_too_large (verified 2026-06-19: a 1792×2400=4.3MP upload failed; downscaling to
+    //   1727×2314=3.99MP succeeded). CC has no server-side resize for boogu (sharp is a dep but
+    //   not bundled), so pre-downscale inputs >4MP before feeding this node.
+    // NOTE: boogu DOES accept fal.media / fal.storage URLs as input (unlike mai-edit) — the CC
+    //   toFalUrl path works as-is; no data-URI inlining needed.
+    nodeTypes: ["image_edit"],
+    priceHint: "≈$0.04 / MP (needs FAL_KEY)",
+    paramSchema: [
+      { key: "negative_prompt", label: "Negative", type: "string" },
+      { key: "guidance_scale", label: "Guidance", type: "number", min: 1, max: 12, step: 0.5 },
+      { key: "image_guidance_scale", label: "Image guidance", type: "number", min: 0.5, max: 4, step: 0.1 },
+      { key: "num_inference_steps", label: "Steps", type: "number", min: 10, max: 50, step: 1 },
+      { key: "seed", label: "Seed", type: "number", min: 0, step: 1 },
+      { key: "num_images", label: "Count", type: "number", min: 1, max: 4, step: 1 },
+      { key: "output_format", label: "Format", type: "select", options: ["jpeg", "png"] },
+    ],
+    defaults: { guidance_scale: 4, image_guidance_scale: 1, num_inference_steps: 30, output_format: "png", num_images: 1 },
+  },
+  {
     id: "fal/ideogram-v4",
     provider: "fal",
     path: "ideogram/v4",
@@ -565,6 +599,29 @@ export const MODELS: ModelSpec[] = [
       { key: "mode", label: "Mode", type: "select", options: ["t2v", "i2v"] },
     ],
     defaults: { duration: 5, resolution: "720p", mode: "i2v" },
+  },
+  {
+    id: "fal/gemini-omni-flash-r2v",
+    provider: "fal",
+    // Google Gemini Omni Flash — dedicated reference-to-video endpoint (added to fal
+    // 2026-06). Schema confirmed 2026-07-01 via fal's own OpenAPI
+    // (/api/openapi/queue/openapi.json?endpoint_id=google/gemini-omni-flash/reference-to-video):
+    // required prompt + image_urls (1–10), optional duration (3–10, default 8) and
+    // aspect_ratio (16:9 | 9:16 only — no resolution field, no explicit mode: this
+    // endpoint IS r2v, unlike kie/seedance-2.0's shared t2v/i2v/flf/r2v slug). Output
+    // video has native synchronized audio generated from the prompt (no audio toggle).
+    // `prompt` supports inline reference binding via <IMAGE_REF_0>, <IMAGE_REF_1>, ...
+    // tags matching image_urls array order — see fal.ts buildInput for the ref_in→
+    // image_urls ordering this relies on.
+    path: "google/gemini-omni-flash/reference-to-video",
+    kind: "video",
+    nodeTypes: ["video_gen"],
+    priceHint: "≈$0.13/s (720p, native audio, needs FAL_KEY)",
+    paramSchema: [
+      { key: "duration", label: "Duration (s)", type: "number", min: 3, max: 10, step: 1 },
+      { key: "aspect_ratio", label: "Aspect", type: "select", options: ["16:9", "9:16"] },
+    ],
+    defaults: { duration: 8, aspect_ratio: "16:9" },
   },
   {
     id: "xai/grok-imagine-video-1.5",

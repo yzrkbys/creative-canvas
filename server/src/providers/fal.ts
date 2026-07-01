@@ -168,9 +168,24 @@ function buildInput(
   } else if (modelId === "fal/mai-image-2.5-edit") {
     // i2i edit takes image_urls but accepts AT MOST ONE image (2 -> 422). Cap to 1.
     if (imageUrls.length > 0) input.image_urls = imageUrls.slice(0, 1);
+  } else if (modelId === "fal/boogu-image-edit") {
+    // i2i edit: single input image as image_url (singular). The scalar knobs
+    // (negative_prompt / guidance_scale / image_guidance_scale / num_inference_steps /
+    // seed / num_images / output_format) flow through the `allowed` spread above.
+    if (imageUrls.length > 0) input.image_url = imageUrls[0];
   } else if (modelId === "fal/seedance-2.0") {
     // i2v: first input image seeds the video
     if (imageUrls.length > 0) input.image_url = imageUrls[0];
+  } else if (modelId === "fal/gemini-omni-flash-r2v") {
+    // r2v: every ref_in connection becomes an image_urls entry (API caps at 10).
+    // Order is preserved from the inputs array so the prompt's <IMAGE_REF_0>/
+    // <IMAGE_REF_1>/... tags map predictably onto connection order.
+    const refUrls = inputs.filter((i) => i.port === "ref_in").map((i) => i.url);
+    if (refUrls.length === 0)
+      throw new Error(
+        "fal/gemini-omni-flash-r2v needs at least one reference image connected to ref_in",
+      );
+    input.image_urls = refUrls.slice(0, 10);
   } else if (modelId === "fal/ideogram-v4") {
     // ParamField has no boolean type; the select yields "true"/"false" strings.
     // fal expects a real boolean — coerce it (the string "false" is truthy).
@@ -199,6 +214,17 @@ export const falAdapter: ProviderAdapter = {
   },
   estimateCost(model, params, inputs): CostEstimate {
     const spec = getModel(model);
+    // Gemini Omni Flash r2v: flat ≈$0.13/s (720p, native audio) — no resolution
+    // param on this endpoint, so it must NOT fall through to the generic
+    // resolutionFactor()-based $0.30/s formula below (that's seedance's pricing).
+    if (model === "fal/gemini-omni-flash-r2v") {
+      const dur = Number(params.duration ?? spec?.defaults.duration ?? 8);
+      return {
+        amount: Number((0.13 * dur).toFixed(2)),
+        currency: "USD",
+        note: `${dur}s reference-to-video, ${params.aspect_ratio ?? "16:9"} (native audio)`,
+      };
+    }
     if (spec?.kind === "video") {
       const dur = Number(params.duration ?? spec.defaults.duration ?? 5);
       const amount =
@@ -230,6 +256,16 @@ export const falAdapter: ProviderAdapter = {
         amount: Number(((perMp + expand) * cnt).toFixed(2)),
         currency: "USD",
         note: `${cnt} img @ ${speed}${expand ? " +expand" : ""}`,
+      };
+    }
+    // boogu-image edit: $0.04 / megapixel. fal's image_size enums (and "auto" on a
+    // ~0.45–1MP portrait input) land near 1MP, so approximate 1MP/image.
+    if (model === "fal/boogu-image-edit") {
+      const cnt = Number(params.num_images ?? 1);
+      return {
+        amount: Number((0.04 * cnt).toFixed(2)),
+        currency: "USD",
+        note: `${cnt} img @ ~1MP ($0.04/MP)`,
       };
     }
     // krea/v2 large: flat per-image; style references bump it to $0.065.
