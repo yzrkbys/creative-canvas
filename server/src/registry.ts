@@ -77,6 +77,49 @@ export const MODELS: ModelSpec[] = [
     defaults: { image_size: "square_hd", image_resolution: "2K", max_images: 1 },
   },
   {
+    id: "kie/seedream-5-pro",
+    provider: "kie",
+    // ByteDance Seedream 5.0 Pro — text-to-image. Slug + params verified against
+    // docs.kie.ai/market/seedream/5-pro-text-to-image (2026-07-09). Pro's aspect set
+    // OMITS 21:9 (which the Lite tier offers). quality: basic=1K, high=2K images.
+    path: "seedream/5-pro-text-to-image",
+    kind: "image",
+    nodeTypes: ["image_gen"],
+    priceHint: "≈$0.05–0.09 / image (概算・要確認)",
+    paramSchema: [
+      {
+        key: "aspect_ratio",
+        label: "Aspect",
+        type: "select",
+        options: ["1:1", "4:3", "3:4", "16:9", "9:16", "2:3", "3:2"],
+      },
+      { key: "quality", label: "Quality", type: "select", options: ["basic", "high"] },
+    ],
+    defaults: { aspect_ratio: "1:1", quality: "basic" },
+  },
+  {
+    id: "kie/seedream-5-pro-edit",
+    provider: "kie",
+    // Seedream 5.0 Pro — image-to-image (precise local editing + layered control).
+    // Slug + params verified against docs.kie.ai/market/seedream/5-pro-image-to-image
+    // (2026-07-09). Input field is `image_urls` (array, up to 10; jpg/png/webp, ≤10MB
+    // each) — accepts multi-image compositing, so both image_in and ref_in feed it.
+    path: "seedream/5-pro-image-to-image",
+    kind: "image",
+    nodeTypes: ["image_edit"],
+    priceHint: "≈$0.05–0.09 / image (概算・要確認)",
+    paramSchema: [
+      {
+        key: "aspect_ratio",
+        label: "Aspect",
+        type: "select",
+        options: ["1:1", "4:3", "3:4", "16:9", "9:16", "2:3", "3:2"],
+      },
+      { key: "quality", label: "Quality", type: "select", options: ["basic", "high"] },
+    ],
+    defaults: { aspect_ratio: "1:1", quality: "basic" },
+  },
+  {
     id: "kie/flux-2-pro",
     provider: "kie",
     path: "flux-2/pro-text-to-image",
