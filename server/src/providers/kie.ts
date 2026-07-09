@@ -130,6 +130,27 @@ function buildInput(
     };
   }
 
+  if (modelId === "kie/seedream-5-pro") {
+    return {
+      prompt,
+      aspect_ratio: params.aspect_ratio ?? "1:1",
+      quality: params.quality ?? "basic",
+    };
+  }
+
+  if (modelId === "kie/seedream-5-pro-edit") {
+    // Seedream 5.0 Pro i2i field is `image_urls` (array, up to 10). image_in + ref_in
+    // both flow through `urls` (audio already filtered out above).
+    if (urls.length === 0)
+      throw new Error("seedream-5-pro (i2i) needs at least one input image (connect to image_in)");
+    return {
+      prompt,
+      image_urls: urls.slice(0, 10),
+      aspect_ratio: params.aspect_ratio ?? "1:1",
+      quality: params.quality ?? "basic",
+    };
+  }
+
   if (modelId === "kie/flux-2-pro") {
     return {
       prompt,
@@ -408,6 +429,17 @@ function estimate(model: string, params: Record<string, unknown>): CostEstimate 
   if (model === "kie/seedream-v4") {
     const n = Number(params.max_images ?? 1);
     return { amount: Number((0.03 * n).toFixed(2)), currency: "USD", note: `seedream-v4 ×${n} (概算)` };
+  }
+  if (model === "kie/seedream-5-pro" || model === "kie/seedream-5-pro-edit") {
+    // KIE has not published Pro pricing (Lite is $0.035/image); advisory only —
+    // actual cost is reported as creditsConsumed after the run.
+    const amount = params.quality === "high" ? 0.09 : 0.05;
+    const edit = model.endsWith("-edit");
+    return {
+      amount,
+      currency: "USD",
+      note: `${edit ? "seedream-5-pro-edit" : "seedream-5-pro"} ${params.quality ?? "basic"} (概算・要確認)`,
+    };
   }
   if (model === "kie/flux-2-pro") {
     const res = params.resolution ?? "1K";
