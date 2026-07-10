@@ -207,12 +207,83 @@ function buildInput(
   return input;
 }
 
+// "レイヤー分離" (要素抽出) cost = Seedream edit (per-image, tiered by quality) +
+// extra reference images + a flat matte->alpha pass (rembg/birefnet). See the
+// fal/seedream-layer-extract registry entry for the full 2-stage rationale.
+function layerExtractCost(
+  params: Record<string, unknown>,
+  inputs: ResolvedInput[],
+): number {
+  const base = params.quality === "high" ? 0.135 : 0.0675; // seedream edit / image
+  const extraRefs = Math.max(0, inputs.length - 1) * 0.0045;
+  const refine = 0.01; // matte -> alpha (birefnet/rembg)
+  return Number((base + extraRefs + refine).toFixed(3));
+}
+
+// Two-stage layer extraction (fal has no single layer-separation endpoint):
+//   1) Seedream 5 Pro edit — isolate the target element onto a solid WHITE matte
+//      (this endpoint can't output alpha, so we key to white first).
+//   2) birefnet/rembg — strip the white matte into a genuine transparent-alpha PNG.
+// Returns the final alpha PNG as the node's single output.
+async function runSeedreamLayerExtract(
+  args: ProviderRunArgs,
+): Promise<ProviderRunResult> {
+  const { prompt, params, inputs } = args;
+  const target = (prompt || "").trim() || "the main subject";
+  const imageUrls = await Promise.all(inputs.map((i) => toFalUrl(i.url)));
+  if (imageUrls.length === 0)
+    throw new Error("fal/seedream-layer-extract needs a source image on image_in");
+
+  const isolatePrompt =
+    `Keep ONLY: ${target}. Place ${target} as a clean cutout on a plain, pure solid white (#FFFFFF) background. ` +
+    `Remove the entire original background, every other subject/object, and all text. ` +
+    `Preserve ${target}'s exact appearance, colours, proportions and orientation. Do not add anything new.`;
+  const step1 = await subscribeWithRetry("bytedance/seedream/v5/pro/edit", {
+    prompt: isolatePrompt,
+    image_urls: imageUrls,
+    num_images: 1,
+    output_format: "png",
+    image_size: params.quality === "high" ? "auto_2K" : "auto_1K",
+  });
+  const matte = extractOutputs(step1.data, "image")[0];
+  if (!matte?.url) throw new Error("seedream isolate returned no image");
+
+  const refineEndpoint =
+    params.refine === "rembg" ? "fal-ai/imageutils/rembg" : "fal-ai/birefnet/v2";
+  const step2 = await fal.subscribe(refineEndpoint, {
+    input: { image_url: matte.url },
+    logs: false,
+  });
+  const cut = extractOutputs(step2.data, "image")[0];
+  if (!cut?.url)
+    throw new Error(`background removal (${refineEndpoint}) returned no image`);
+
+  return {
+    outputs: [
+      {
+        kind: "image",
+        url: cut.url,
+        width: cut.width ?? matte.width,
+        height: cut.height ?? matte.height,
+      },
+    ],
+    cost: layerExtractCost(params, inputs),
+  };
+}
+
 export const falAdapter: ProviderAdapter = {
   id: "fal",
   supports(model) {
     return model.startsWith("fal/");
   },
   estimateCost(model, params, inputs): CostEstimate {
+    if (model === "fal/seedream-layer-extract") {
+      return {
+        amount: layerExtractCost(params, inputs),
+        currency: "USD",
+        note: `isolate(${params.quality ?? "basic"}) + ${params.refine ?? "birefnet"} 透過化`,
+      };
+    }
     const spec = getModel(model);
     // Gemini Omni Flash r2v: flat ≈$0.13/s (720p, native audio) — no resolution
     // param on this endpoint, so it must NOT fall through to the generic
@@ -288,6 +359,7 @@ export const falAdapter: ProviderAdapter = {
   },
   async run(model, args): Promise<ProviderRunResult> {
     ensureConfigured();
+    if (model === "fal/seedream-layer-extract") return runSeedreamLayerExtract(args);
     const spec = getModel(model);
     if (!spec) throw new Error(`unknown model ${model}`);
     // mai edit needs its input image inlined (URL delivery 422s — see toDataUri).
