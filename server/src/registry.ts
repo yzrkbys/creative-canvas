@@ -354,6 +354,37 @@ export const MODELS: ModelSpec[] = [
     defaults: { guidance_scale: 4, image_guidance_scale: 1, num_inference_steps: 30, output_format: "png", num_images: 1 },
   },
   {
+    id: "fal/seedream-layer-extract",
+    provider: "fal",
+    // "レイヤー分離" (要素抽出) — pull ONE named element out of an image as a
+    // transparent-alpha PNG layer. A 2-STAGE fal pipeline lives INSIDE the adapter
+    // (runSeedreamLayerExtract): there is NO single "layer separation" endpoint on
+    // fal or KIE — verified 2026-07-10 against the real Seedream 5 Pro edit + rembg/
+    // birefnet OpenAPI schemas and with the live FAL_KEY. Stages:
+    //   1) bytedance/seedream/v5/pro/edit — "keep ONLY <target>" -> the element
+    //      cleanly cut out on a solid WHITE matte. Seedream's edit endpoint CANNOT
+    //      emit alpha (returns opaque 3-channel RGB even when asked for transparency
+    //      — confirmed live), so we key it to white here and strip the white next.
+    //   2) birefnet/v2 (or rembg) — white matte -> genuine 4-channel alpha PNG
+    //      (2-3s, cheap; verified channels=4, ~70% transparent, clean soft edges).
+    // The node PROMPT is the target element (e.g. "孔雀" / "the title text").
+    // image_in (required) is the source; extra ref_in images ride along to stage 1.
+    // CAVEAT: Seedream regenerates/upscales pixels, so a layer is "extract & reuse",
+    // NOT pixel-exact recomposition onto the original — that needs BytePlus-native
+    // dola-seedream-5-0-pro layer separation, which fal/KIE don't expose. Make N
+    // nodes (one target each) to decompose an image into N layers; the MCP agent can
+    // fan these out. Registry-driven — no web/MCP changes needed (like Seedream 5 Pro).
+    path: "bytedance/seedream/v5/pro/edit",
+    kind: "image",
+    nodeTypes: ["image_edit"],
+    priceHint: "≈$0.07–0.14 / レイヤー (isolate+透過化, needs FAL_KEY)",
+    paramSchema: [
+      { key: "quality", label: "Quality", type: "select", options: ["basic", "high"] },
+      { key: "refine", label: "透過化", type: "select", options: ["birefnet", "rembg"] },
+    ],
+    defaults: { quality: "basic", refine: "birefnet" },
+  },
+  {
     id: "fal/ideogram-v4",
     provider: "fal",
     path: "ideogram/v4",
