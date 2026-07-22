@@ -5,6 +5,7 @@ import type { NodeType } from "./types";
 export const NODE_LABELS: Record<NodeType, string> = {
   image_gen: "画像生成",
   image_edit: "画像編集",
+  bg_remove: "背景透過",
   video_gen: "動画生成",
   image_upload: "画像アップロード",
   video_upload: "動画アップロード",

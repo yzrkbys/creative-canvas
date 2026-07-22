@@ -28,6 +28,13 @@ export const PORTS: Record<NodeType, PortDef> = {
     ],
     output: { port: "image_out", kind: "image" },
   },
+  // Background removal / alpha matting (BiRefNet). A promptless image→image processor:
+  // one source image in, a transparent-background cutout out. No ref_in / text_in — the
+  // model auto-detects the salient subject (it takes no prompt).
+  bg_remove: {
+    inputs: [{ port: "image_in", kind: "image", required: true }],
+    output: { port: "image_out", kind: "image" },
+  },
   // video_gen ports cover every Seedance 2.0 mode; which are needed depends on
   // the selected model/mode (validated by the adapter), so none are "required".
   video_gen: {

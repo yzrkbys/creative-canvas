@@ -114,7 +114,8 @@ server.tool(
 
 server.tool(
   "canvas_add_node",
-  "Add a node. type=image_gen|image_edit|video_gen|image_upload|video_upload|audio_upload|video_upscale|video_concat|frame_extract|note|doc|web_clip|frame. " +
+  "Add a node. type=image_gen|image_edit|bg_remove|video_gen|image_upload|video_upload|audio_upload|video_upscale|video_concat|frame_extract|note|doc|web_clip|frame. " +
+    "bg_remove = background removal / matting (BiRefNet): connect a source image to image_in, pick the model variant in params, canvas_run -> transparent cutout on image_out (no prompt). " +
     "image_upload/video_upload/audio_upload = a user-supplied media source (attach bytes via the upload tools/UI). " +
     "note/doc = editable text (set content with canvas_set_prompt; doc is long-form). " +
     "web_clip = fetch a URL to text (set params.url, then canvas_run). " +
@@ -125,6 +126,7 @@ server.tool(
     type: z.enum([
       "image_gen",
       "image_edit",
+      "bg_remove",
       "video_gen",
       "image_upload",
       "video_upload",

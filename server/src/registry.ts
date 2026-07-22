@@ -466,6 +466,65 @@ export const MODELS: ModelSpec[] = [
     ],
     defaults: { aspect_ratio: "1:1", creativity: "medium" },
   },
+  {
+    id: "fal/birefnet-v2",
+    provider: "fal",
+    path: "fal-ai/birefnet/v2",
+    kind: "image",
+    // Background removal / alpha matting (BiRefNet v2). Runs on the dedicated, promptless
+    // `bg_remove` (背景透過) node: connect the source image to image_in — there is no prompt
+    // (birefnet takes none; it auto-detects the salient subject). buildInput still strips
+    // prompt defensively. Verified 2026-07-22 across hair / anime / straw / glass:
+    // commercial-grade cutout, no edge halo, output at INPUT resolution.
+    // Sub-cent (fal bills $0.0008/compute-sec, ~2–3s/image).
+    //
+    // model variants (v2 adds Matting + Dynamic over v1):
+    //   General Use (Heavy)   = safe all-round solid cutout — DEFAULT.
+    //   Matting               = TRUE semi-transparency (glass/smoke) + softest hair.
+    //   General Use (Dynamic) = the ONLY model allowing operating_resolution 2304x2304.
+    //   Portrait              = people-specialised.  Light / Light 2K = faster, harder
+    //                           (crisper) matte — good for clean anime line-art.
+    // operating_resolution = internal mask compute res; the returned cutout keeps the
+    //   input's resolution. 2304x2304 is Dynamic-only (pairing it with another model 422s).
+    // refine_foreground decontaminates the foreground COLOR (anti-halo) — keep ON. It has
+    //   no boolean ParamField, so the select yields "true"/"false" that fal.ts coerces
+    //   (same pattern as ideogram's enable_prompt_expansion). Likewise mask_only.
+    // mask_only=true makes image_out carry the raw matte instead of the cutout.
+    nodeTypes: ["bg_remove"],
+    priceHint: "≈$0.002 / image ($0.0008/compute-sec; needs FAL_KEY)",
+    paramSchema: [
+      {
+        key: "model",
+        label: "Model",
+        type: "select",
+        options: [
+          "General Use (Heavy)",
+          "General Use (Light)",
+          "General Use (Light 2K)",
+          "Matting",
+          "Portrait",
+          "General Use (Dynamic)",
+        ],
+      },
+      {
+        key: "operating_resolution",
+        label: "Op. resolution",
+        type: "select",
+        // 2304x2304 is only valid with the "General Use (Dynamic)" model.
+        options: ["2048x2048", "1024x1024", "2304x2304"],
+      },
+      { key: "refine_foreground", label: "Refine FG", type: "select", options: ["true", "false"] },
+      { key: "mask_only", label: "Mask only", type: "select", options: ["false", "true"] },
+      { key: "output_format", label: "Format", type: "select", options: ["png", "webp"] },
+    ],
+    defaults: {
+      model: "General Use (Heavy)",
+      operating_resolution: "2048x2048",
+      refine_foreground: "true",
+      mask_only: "false",
+      output_format: "png",
+    },
+  },
 
   // ---------------- VIDEO ----------------
   {
