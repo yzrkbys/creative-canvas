@@ -70,6 +70,24 @@ function isTransientSafetyBlock(err: unknown): boolean {
   return hay.includes("content_policy_violation") || hay.includes("safety filter");
 }
 
+// fal's upstream model backends intermittently return a transient 5xx — most often
+// `downstream_service_unavailable` (surfaced as "Gateway Timeout"), plus 502/503/504.
+// These are explicitly retryable (https://docs.fal.ai/errors) and usually clear within
+// seconds. Observed 2026-07-22 on the freshly-launched alibaba/qwen-image-3 backend
+// (both via CC and a direct client), but it can hit any fal model during a blip. Unlike a
+// safety block, the input is fine as-is — just retry after a longer backoff.
+function isTransientBackendError(err: unknown): boolean {
+  const e = err as { message?: string; status?: number; body?: unknown };
+  if (e?.status === 502 || e?.status === 503 || e?.status === 504) return true;
+  const hay = `${e?.message ?? ""} ${JSON.stringify(e?.body ?? "")}`.toLowerCase();
+  return (
+    hay.includes("downstream_service_unavailable") ||
+    hay.includes("gateway timeout") ||
+    hay.includes("service unavailable") ||
+    hay.includes("bad gateway")
+  );
+}
+
 async function subscribeWithRetry(
   path: string,
   input: Record<string, unknown>,
@@ -89,6 +107,12 @@ async function subscribeWithRetry(
         // when the user's exact-seed output is unavailable anyway.
         if (typeof input.seed === "number") input.seed = input.seed + attempt;
         await new Promise((r) => setTimeout(r, 400 * attempt));
+        continue;
+      }
+      if (attempt < maxAttempts && isTransientBackendError(err)) {
+        // Input is fine — a fal backend blipped. Back off longer than the safety case
+        // (1.5s / 3s / 4.5s) to let the upstream model service recover before retrying.
+        await new Promise((r) => setTimeout(r, 1500 * attempt));
         continue;
       }
       throw err;
@@ -165,6 +189,14 @@ function buildInput(
     }
     // image_edit passes the target image (+ optional refs) as reference images
     if (imageUrls.length > 0) input.image_urls = imageUrls;
+  } else if (modelId === "fal/qwen-image-3") {
+    // ParamField has no boolean type; coerce the expansion select to a real boolean.
+    if (typeof input.enable_prompt_expansion === "string")
+      input.enable_prompt_expansion = input.enable_prompt_expansion === "true";
+    // image_edit → the /edit endpoint (routed in run()) takes reference images as
+    // image_urls (1–3): the image_in target plus any ref_in. image_gen has no images and
+    // hits text-to-image. Cap at the API's max of 3.
+    if (imageUrls.length > 0) input.image_urls = imageUrls.slice(0, 3);
   } else if (modelId === "fal/mai-image-2.5-edit") {
     // i2i edit takes image_urls but accepts AT MOST ONE image (2 -> 422). Cap to 1.
     if (imageUrls.length > 0) input.image_urls = imageUrls.slice(0, 1);
@@ -373,6 +405,11 @@ export const falAdapter: ProviderAdapter = {
     if (model === "fal/birefnet-v2") {
       return { amount: 0.003, currency: "USD", note: "bg-removal (~$0.0008/compute-sec)" };
     }
+    // qwen-image-3: flat $0.075 / image (text-to-image and edit alike), by num_images.
+    if (model === "fal/qwen-image-3") {
+      const cnt = Number(params.num_images ?? 1);
+      return { amount: Number((0.075 * cnt).toFixed(3)), currency: "USD", note: `${cnt} img @ $0.075` };
+    }
     const n = Number(params.n ?? 1);
     const per = params.quality === "high" ? 0.17 : params.quality === "low" ? 0.02 : 0.07;
     void inputs;
@@ -401,7 +438,9 @@ export const falAdapter: ProviderAdapter = {
     const endpointPath =
       model === "fal/gpt-image-2" && falInputs.length > 0
         ? "fal-ai/gpt-image-1/edit-image"
-        : spec.path;
+        : model === "fal/qwen-image-3" && falInputs.length > 0
+          ? "alibaba/qwen-image-3/edit"
+          : spec.path;
     const result = await subscribeWithRetry(endpointPath, input);
     const outputs = extractOutputs(result.data, spec.kind);
     if (outputs.length === 0)

@@ -189,18 +189,6 @@ function buildInput(
     };
   }
 
-  if (modelId === "kie/qwen-image-edit") {
-    const img = byPort("image_in")[0] ?? urls[0];
-    if (!img) throw new Error("qwen/image-edit needs an input image on image_in");
-    return {
-      prompt,
-      image_url: img,
-      image_size: params.image_size ?? "square_hd",
-      num_images: String(params.num_images ?? 1),
-      output_format: params.output_format ?? "png",
-    };
-  }
-
   if (modelId === "kie/kling-3.0") {
     const input: Record<string, unknown> = {
       prompt,
@@ -454,10 +442,6 @@ function estimate(model: string, params: Record<string, unknown>): CostEstimate 
   }
   if (model === "kie/nano-banana-edit") {
     return { amount: 0.04, currency: "USD", note: `nano-banana-edit (概算)` };
-  }
-  if (model === "kie/qwen-image-edit") {
-    const n = Number(params.num_images ?? 1);
-    return { amount: Number((0.02 * n).toFixed(2)), currency: "USD", note: `qwen-image-edit ×${n} (概算)` };
   }
   if (model === "kie/kling-3.0") {
     const dur = Number(params.duration ?? 5);
