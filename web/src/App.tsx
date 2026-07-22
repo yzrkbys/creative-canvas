@@ -43,6 +43,7 @@ const edgeTypes = { cut: CutEdge };
 const nodeTypes: NodeTypes = {
   image_gen: CanvasNode,
   image_edit: CanvasNode,
+  bg_remove: CanvasNode,
   video_gen: CanvasNode,
   image_upload: CanvasNode,
   video_upload: CanvasNode,
@@ -72,7 +73,7 @@ function defaultSize(t: NodeType): { w: number; h: number } {
 
 // Grouped node palette for the "+ Add node" menu (scales as types grow).
 const NODE_GROUPS: { label: string; types: NodeType[] }[] = [
-  { label: "メディア", types: ["image_gen", "image_edit", "video_gen", "image_upload", "video_upload", "audio_upload", "video_upscale", "video_concat", "frame_extract"] },
+  { label: "メディア", types: ["image_gen", "image_edit", "bg_remove", "video_gen", "image_upload", "video_upload", "audio_upload", "video_upscale", "video_concat", "frame_extract"] },
   { label: "テキスト / 情報", types: ["note", "doc", "web_clip", "file_import"] },
   { label: "レイアウト", types: ["frame"] },
 ];

@@ -203,6 +203,26 @@ function buildInput(
       input.image_style_references = imageUrls.slice(0, 10).map((url) =>
         strength === undefined ? { image_url: url } : { image_url: url, strength },
       );
+  } else if (modelId === "fal/birefnet-v2") {
+    // Background removal takes NO prompt — it runs on the promptless `bg_remove` node, so
+    // strip any (empty) prompt before it reaches the endpoint. Single source image goes in
+    // as image_url (singular). `model` / `operating_resolution` / `output_format` pass
+    // through the allowed spread as strings; the boolean-style selects arrive as
+    // "true"/"false" and must be coerced to real booleans (ParamField has no boolean type —
+    // same treatment as ideogram's enable_prompt_expansion).
+    delete input.prompt;
+    if (imageUrls.length > 0) input.image_url = imageUrls[0];
+    for (const k of ["refine_foreground", "mask_only", "output_mask"]) {
+      if (typeof input[k] === "string") input[k] = input[k] === "true";
+    }
+    // operating_resolution 2304x2304 is Dynamic-only; the UI can leave it selected after
+    // switching model, which would 422. Silently clamp to 2048 for non-Dynamic models.
+    if (
+      input.operating_resolution === "2304x2304" &&
+      input.model !== "General Use (Dynamic)"
+    ) {
+      input.operating_resolution = "2048x2048";
+    }
   }
   return input;
 }
@@ -276,6 +296,11 @@ export const falAdapter: ProviderAdapter = {
         currency: "USD",
         note: withRefs ? "1 image +style-ref" : "1 image",
       };
+    }
+    // birefnet v2 (background removal): fal bills per compute-second ($0.0008/s); observed
+    // ~2–3s/image ⇒ sub-cent. Flat approximation (no per-image list price).
+    if (model === "fal/birefnet-v2") {
+      return { amount: 0.003, currency: "USD", note: "bg-removal (~$0.0008/compute-sec)" };
     }
     const n = Number(params.n ?? 1);
     const per = params.quality === "high" ? 0.17 : params.quality === "low" ? 0.02 : 0.07;

@@ -4,6 +4,7 @@
 export type NodeType =
   | "image_gen"
   | "image_edit"
+  | "bg_remove"
   | "video_gen"
   | "image_upload"
   | "video_upload"

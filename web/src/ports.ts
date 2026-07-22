@@ -21,6 +21,11 @@ export const PORTS: Record<NodeType, PortDef> = {
     ],
     output: { port: "image_out", kind: "image" },
   },
+  // background removal / matting: one image in, transparent cutout out (no prompt)
+  bg_remove: {
+    inputs: [{ port: "image_in", kind: "image", required: true }],
+    output: { port: "image_out", kind: "image" },
+  },
   video_gen: {
     inputs: [
       { port: "image_in", kind: "image", required: false },
