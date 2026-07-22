@@ -230,32 +230,6 @@ export const MODELS: ModelSpec[] = [
     defaults: { image_size: "auto", output_format: "png" },
   },
   {
-    id: "kie/qwen-image-edit",
-    provider: "kie",
-    path: "qwen/image-edit",
-    kind: "image",
-    nodeTypes: ["image_edit"],
-    priceHint: "≈$0.02 / image",
-    paramSchema: [
-      {
-        key: "image_size",
-        label: "Size",
-        type: "select",
-        options: [
-          "square",
-          "square_hd",
-          "portrait_4_3",
-          "portrait_16_9",
-          "landscape_4_3",
-          "landscape_16_9",
-        ],
-      },
-      { key: "num_images", label: "Count", type: "number", min: 1, max: 4, step: 1 },
-      { key: "output_format", label: "Format", type: "select", options: ["png", "jpeg"] },
-    ],
-    defaults: { image_size: "square_hd", num_images: 1, output_format: "png" },
-  },
-  {
     id: "fal/gpt-image-2",
     provider: "fal",
     // fal split gpt-image-1 into subpaths (~2026-06): the base `fal-ai/gpt-image-1`
@@ -271,6 +245,41 @@ export const MODELS: ModelSpec[] = [
       { key: "n", label: "Count", type: "number", min: 1, max: 4, step: 1 },
     ],
     defaults: { size: "1024x1024", quality: "medium", n: 1 },
+  },
+  {
+    id: "fal/qwen-image-3",
+    provider: "fal",
+    // Alibaba Qwen-Image-3 (fal). ONE model, BOTH node types — like fal/gpt-image-2:
+    // image_gen → text-to-image (spec.path), image_edit → edit (routed in fal.ts run()
+    // to alibaba/qwen-image-3/edit when an image is connected). Verified 2026-07-22:
+    // superb bilingual (CJK+Latin) text rendering + photoreal T2I; faithful background/
+    // identity-preserving edit. $0.075/image, ~40s.
+    //   Edit accepts 1–3 reference images via image_urls (image_in + ref_in) = multi-image
+    //   compositing. Input must be JPEG / PNG-WITHOUT-ALPHA / WEBP, 384–2048px per side
+    //   (a transparent PNG e.g. from a 背景透過 node may be rejected — flatten first).
+    //   Preset image_size maxes ~1MP (square_hd=1024²); use a bigger canvas via the API's
+    //   custom {width,height} if higher res is needed (not exposed here yet).
+    path: "alibaba/qwen-image-3/text-to-image",
+    kind: "image",
+    nodeTypes: ["image_gen", "image_edit"],
+    priceHint: "≈$0.075 / image (needs FAL_KEY)",
+    paramSchema: [
+      {
+        key: "image_size",
+        label: "Size",
+        type: "select",
+        options: ["square_hd", "square", "portrait_4_3", "portrait_16_9", "landscape_4_3", "landscape_16_9"],
+      },
+      // enable_prompt_expansion rewrites the prompt with an LLM (fal default true). Default
+      // OFF here to preserve hand-authored prompts — same policy as fal/ideogram-v4. The
+      // select yields "true"/"false"; fal.ts coerces it to a real boolean.
+      { key: "enable_prompt_expansion", label: "Expand prompt", type: "select", options: ["false", "true"] },
+      { key: "negative_prompt", label: "Negative", type: "string" },
+      { key: "num_images", label: "Count", type: "number", min: 1, max: 4, step: 1 },
+      { key: "seed", label: "Seed", type: "number", min: 0, max: 2147483647, step: 1 },
+      { key: "output_format", label: "Format", type: "select", options: ["png", "jpeg", "webp"] },
+    ],
+    defaults: { image_size: "square_hd", enable_prompt_expansion: "false", num_images: 1, output_format: "png" },
   },
   {
     id: "fal/mai-image-2.5",
